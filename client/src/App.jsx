@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import SearchPage from './pages/SearchPage';
 import ProviderProfile from './pages/ProviderProfile';
+import ProviderDashboard from './pages/ProviderDashboard';
 import LoginModal from './components/LoginModal';
 import { useContext } from 'react';
 
@@ -26,6 +27,11 @@ const NavBar = () => {
                   <span className="text-sm font-bold text-slate-900">{user.name}</span>
                   <span className="text-xs text-slate-500 capitalize">{user.role}</span>
                 </div>
+                {user.role === 'provider' && (
+                  <a href="/dashboard" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                    Dashboard
+                  </a>
+                )}
                 <button 
                   onClick={logout}
                   className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
@@ -59,6 +65,7 @@ function App() {
           <Routes>
             <Route path="/" element={<SearchPage />} />
             <Route path="/provider/:id" element={<ProviderProfile />} />
+            <Route path="/dashboard" element={<ProviderDashboard />} />
           </Routes>
         </main>
         <LoginModal />

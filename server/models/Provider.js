@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const providerSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   name: { type: String, required: true },
   serviceType: { type: String, required: true },
   location: {
