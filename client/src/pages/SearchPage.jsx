@@ -83,8 +83,8 @@ const SearchPage = () => {
             />
 
             <div className="mt-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">
-                {loading ? 'Searching...' : `${providers.length} Provider${providers.length !== 1 ? 's' : ''} Found`}
+              <h2 className="text-xl font-bold mb-4">
+                {loading ? <span className="text-slate-900">Searching...</span> : <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">{providers.length} Provider{providers.length !== 1 ? 's' : ''} Found</span>}
               </h2>
 
               {loading ? (

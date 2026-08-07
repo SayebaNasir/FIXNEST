@@ -36,7 +36,7 @@ const seedData = async () => {
         ],
         portfolio: [
           'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=500',
-          'https://images.unsplash.com/photo-1607472586893-edb57cb31328?w=500'
+          'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500'
         ],
         bio: 'Expert plumber with 12 years of experience in residential and commercial plumbing. Specializing in pipe fitting, leak repair, and bathroom installations across Dhaka.'
       },
@@ -79,7 +79,7 @@ const seedData = async () => {
         ],
         portfolio: [
           'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=500',
-          'https://images.unsplash.com/photo-1607472586893-edb57cb31328?w=500',
+          'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500',
           'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500'
         ],
         bio: 'Premium plumbing services trusted by 500+ families in Gulshan and Banani. 24/7 emergency service available. Licensed and insured.'
@@ -104,7 +104,7 @@ const seedData = async () => {
         ],
         portfolio: [
           'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=500',
-          'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=500'
+          'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=500'
         ],
         bio: 'Certified electricians for all residential and commercial needs. Wiring, fan installation, switch board repair, and smart home setup.'
       },
@@ -144,7 +144,7 @@ const seedData = async () => {
           { day: 'Friday', slots: ['15:00', '17:00'] }
         ],
         portfolio: [
-          'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=500',
+          'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=500',
           'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=500'
         ],
         bio: 'Full-service electrical company. From simple repairs to complete rewiring. We handle AC installation, generator setup, and solar panel wiring.'
@@ -236,7 +236,7 @@ const seedData = async () => {
         ],
         portfolio: [
           'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500',
-          'https://images.unsplash.com/photo-1527515637462-cee1485c3791?w=500'
+          'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=500'
         ],
         bio: 'Professional home and office cleaning services. Deep cleaning, move-in/move-out cleaning, and regular maintenance packages available.'
       },
@@ -258,7 +258,7 @@ const seedData = async () => {
           { day: 'Friday', slots: ['15:00', '17:00'] }
         ],
         portfolio: [
-          'https://images.unsplash.com/photo-1527515637462-cee1485c3791?w=500',
+          'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=500',
           'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500'
         ],
         bio: 'Premium cleaning service with trained staff. We use eco-friendly products and modern equipment. Serving Gulshan, Banani, and Baridhara.'
@@ -279,7 +279,7 @@ const seedData = async () => {
           { day: 'Thursday', slots: ['09:00', '12:00', '15:00'] }
         ],
         portfolio: [
-          'https://images.unsplash.com/photo-1527515637462-cee1485c3791?w=500'
+          'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=500'
         ],
         bio: 'Affordable cleaning services for small apartments and bachelor pads. Quick same-day service available in Mohammadpur area.'
       },
@@ -329,7 +329,7 @@ const seedData = async () => {
         reviewCount: 11,
         pricePerHour: 400,
         availability: [{ day: 'Sunday', slots: ['08:00', '12:00'] }, { day: 'Monday', slots: ['08:00', '15:00'] }],
-        portfolio: ['https://images.unsplash.com/photo-1527515637462-cee1485c3791?w=500'],
+        portfolio: ['https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=500'],
         bio: 'Specialized in cleaning older heritage buildings and narrow street homes.'
       },
       {
@@ -341,7 +341,7 @@ const seedData = async () => {
         reviewCount: 21,
         pricePerHour: 800,
         availability: [{ day: 'Saturday', slots: ['10:00', '16:00'] }, { day: 'Sunday', slots: ['10:00', '14:00'] }],
-        portfolio: ['https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=500'],
+        portfolio: ['https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=500'],
         bio: 'High-end smart home installations and premium electrical services.'
       },
       {
@@ -353,7 +353,7 @@ const seedData = async () => {
         reviewCount: 14,
         pricePerHour: 500,
         availability: [{ day: 'Monday', slots: ['09:00', '17:00'] }, { day: 'Wednesday', slots: ['09:00', '17:00'] }],
-        portfolio: ['https://images.unsplash.com/photo-1607472586893-edb57cb31328?w=500'],
+        portfolio: ['https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500'],
         bio: 'Commercial and residential plumbing experts.'
       },
       {

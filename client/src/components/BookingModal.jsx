@@ -20,7 +20,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
         const d = new Date(today);
         d.setDate(today.getDate() + i + 1);
         return {
-          date: d.toISOString().split('T')[0],
+          date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
           dayName: d.toLocaleDateString('en-US', { weekday: 'long' })
         };
       });
@@ -75,7 +75,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     const d = new Date(today);
     d.setDate(today.getDate() + i + 1);
     return {
-      date: d.toISOString().split('T')[0],
+      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
       dayName: d.toLocaleDateString('en-US', { weekday: 'long' })
     };
   });
