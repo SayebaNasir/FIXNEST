@@ -6,6 +6,7 @@ require('dotenv').config();
 const providerRoutes = require('./routes/providers');
 const bookingRoutes = require('./routes/bookings');
 const authRoutes = require('./routes/auth');
+const requestRoutes = require('./routes/request');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -18,7 +19,7 @@ app.use(express.json());
 app.use('/api/providers', providerRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/auth', authRoutes);
-
+app.use('/api/requests', requestRoutes);
 // Connect to MongoDB
 // Use a local database for development if MONGO_URI is not provided
 const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/fixnest';

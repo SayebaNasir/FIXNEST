@@ -4,6 +4,8 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 import SearchPage from './pages/SearchPage';
 import ProviderProfile from './pages/ProviderProfile';
 import ProviderDashboard from './pages/ProviderDashboard';
+import RequestDashboard from './pages/RequestDashboard';
+import ProviderRequests from './pages/ProviderRequest';
 import LoginModal from './components/LoginModal';
 import { useContext } from 'react';
 
@@ -66,6 +68,8 @@ function App() {
             <Route path="/" element={<SearchPage />} />
             <Route path="/provider/:id" element={<ProviderProfile />} />
             <Route path="/dashboard" element={<ProviderDashboard />} />
+            <Route path="/requests" element={<RequestDashboard />} />
+            <Route path="/provider/requests" element={<ProviderRequests />} />
           </Routes>
         </main>
         <LoginModal />
