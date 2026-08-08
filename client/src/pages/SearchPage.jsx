@@ -14,8 +14,8 @@ const SearchPage = () => {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Default user location (Aftabnagar, Dhaka)
-  const defaultLocation = { lat: 23.7684, lng: 90.4237 };
+  // User location state (defaults to Aftabnagar, Dhaka)
+  const [userLocation, setUserLocation] = useState({ lat: 23.7684, lng: 90.4237 });
 
   const [filters, setFilters] = useState({
     serviceType: '',
@@ -24,11 +24,28 @@ const SearchPage = () => {
     radius: '50'
   });
 
-  const fetchProviders = async (currentFilters) => {
+  // Get user's actual location on mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
+    }
+  }, []);
+
+  const fetchProviders = async (currentFilters, loc = userLocation) => {
     setLoading(true);
     try {
       const f = currentFilters || filters;
-      let url = `http://localhost:5001/api/providers?lat=${defaultLocation.lat}&lng=${defaultLocation.lng}&radius=${f.radius}`;
+      let url = `http://localhost:5001/api/providers?lat=${loc.lat}&lng=${loc.lng}&radius=${f.radius}`;
 
       if (f.serviceType) url += `&serviceType=${f.serviceType}`;
       if (f.rating) url += `&rating=${f.rating}`;
@@ -43,10 +60,10 @@ const SearchPage = () => {
     }
   };
 
-  // Auto-fetch when filters change
+  // Auto-fetch when filters or location change
   useEffect(() => {
-    fetchProviders(filters);
-  }, [filters]);
+    fetchProviders(filters, userLocation);
+  }, [filters, userLocation]);
 
   const handleBookNow = (provider) => {
     if (!user) {
@@ -78,7 +95,7 @@ const SearchPage = () => {
           <div className="lg:col-span-3 space-y-6">
             <ProviderMap
               providers={providers}
-              userLocation={defaultLocation}
+              userLocation={userLocation}
               radius={Number(filters.radius)}
             />
 
