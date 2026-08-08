@@ -28,7 +28,7 @@ const SearchPage = () => {
     setLoading(true);
     try {
       const f = currentFilters || filters;
-      let url = `http://localhost:5000/api/providers?lat=${defaultLocation.lat}&lng=${defaultLocation.lng}&radius=${f.radius}`;
+      let url = `http://localhost:5001/api/providers?lat=${defaultLocation.lat}&lng=${defaultLocation.lng}&radius=${f.radius}`;
 
       if (f.serviceType) url += `&serviceType=${f.serviceType}`;
       if (f.rating) url += `&rating=${f.rating}`;

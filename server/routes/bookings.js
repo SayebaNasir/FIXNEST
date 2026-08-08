@@ -3,17 +3,53 @@ const router = express.Router();
 const Booking = require('../models/Booking');
 const Provider = require('../models/Provider');
 
+const normalizeTimeSlot = (slot) => {
+  if (typeof slot !== 'string') return '';
+
+  const trimmed = slot.trim();
+  const match = trimmed.match(/(\d{1,2}):(\d{2})/);
+
+  if (!match) {
+    return trimmed;
+  }
+
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
+};
+
 // Create a new booking request
 router.post('/', async (req, res) => {
   try {
     const { providerId, userName, userEmail, userAddress, description, date, time } = req.body;
-    
+
+    if (!providerId || !date || !time) {
+      return res.status(400).json({ message: 'Provider, date and time are required' });
+    }
+
     // Check if provider exists
     const provider = await Provider.findById(providerId);
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found' });
     }
-    
+
+    const requestedDay = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const requestedSlot = normalizeTimeSlot(time);
+    const availabilityEntry = provider.availability?.find((entry) => entry.day === requestedDay);
+    const availableSlots = (availabilityEntry?.slots || []).map(normalizeTimeSlot);
+
+    if (!availabilityEntry || !availableSlots.includes(requestedSlot)) {
+      return res.status(400).json({ message: 'Provider is not available at the selected time.' });
+    }
+
+    const existingBooking = await Booking.findOne({
+      providerId,
+      date,
+      time: requestedSlot
+    });
+
+    if (existingBooking) {
+      return res.status(409).json({ message: 'This time slot is already booked.' });
+    }
+
     const newBooking = new Booking({
       providerId,
       userName,
@@ -21,10 +57,10 @@ router.post('/', async (req, res) => {
       userAddress,
       description,
       date,
-      time,
+      time: requestedSlot,
       status: 'pending'
     });
-    
+
     const savedBooking = await newBooking.save();
     res.status(201).json({ message: 'Booking request created successfully', booking: savedBooking });
   } catch (error) {

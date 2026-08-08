@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
-const auth = (req, res, next) => {
+const auth = async (req, res, next) => {
   // Get token from header
   const authHeader = req.header('Authorization');
 
@@ -12,7 +13,21 @@ const auth = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-    req.user = decoded;
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    if (user.accountStatus === 'deleted') {
+      return res.status(403).json({ message: 'This account has been deleted by an administrator.' });
+    }
+
+    req.user = {
+      ...decoded,
+      role: user.role,
+      accountStatus: user.accountStatus
+    };
     next();
   } catch (err) {
     res.status(401).json({ message: 'Token is not valid' });

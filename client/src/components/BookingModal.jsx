@@ -51,7 +51,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     setStatus('submitting');
     
     try {
-      await axios.post('http://localhost:5000/api/bookings', {
+      await axios.post('http://localhost:5001/api/bookings', {
         ...formData,
         providerId: provider._id
       });

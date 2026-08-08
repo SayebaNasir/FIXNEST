@@ -57,6 +57,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    if (user.accountStatus === 'deleted') {
+      return res.status(403).json({ message: 'This account has been deleted by an administrator.' });
+    }
+
     // Create JWT
     const payload = { id: user._id, role: user.role, name: user.name, email: user.email };
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
