@@ -20,7 +20,6 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/auth', authRoutes);
 
 // Connect to MongoDB
-// Use a local database for development if MONGO_URI is not provided
 const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/fixnest';
 
 mongoose.connect(mongoURI)
