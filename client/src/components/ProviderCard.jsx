@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, MapPin, Clock, CalendarCheck } from 'lucide-react';
+import { Star, MapPin, Clock, CalendarCheck, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ProviderCard = ({ provider, onBookNow }) => {
@@ -12,6 +12,11 @@ const ProviderCard = ({ provider, onBookNow }) => {
             <span className="inline-block mt-1 px-3 py-1 bg-primary-100 text-primary-700 text-sm font-medium rounded-full">
               {provider.serviceType}
             </span>
+            {provider.verificationStatus === 'verified' && (
+              <span className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
+                <ShieldCheck className="w-3.5 h-3.5" /> Verified
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-1 rounded-lg">
             <Star className="w-4 h-4 fill-amber-400 text-amber-400" />

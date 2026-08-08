@@ -4,6 +4,7 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 import SearchPage from './pages/SearchPage';
 import ProviderProfile from './pages/ProviderProfile';
 import ProviderDashboard from './pages/ProviderDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import LoginModal from './components/LoginModal';
 import { useContext } from 'react';
 
@@ -30,6 +31,11 @@ const NavBar = () => {
                 {user.role === 'provider' && (
                   <a href="/dashboard" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                     Dashboard
+                  </a>
+                )}
+                {user.role === 'admin' && (
+                  <a href="/admin" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                    Admin
                   </a>
                 )}
                 <button 
@@ -66,6 +72,7 @@ function App() {
             <Route path="/" element={<SearchPage />} />
             <Route path="/provider/:id" element={<ProviderProfile />} />
             <Route path="/dashboard" element={<ProviderDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
         <LoginModal />

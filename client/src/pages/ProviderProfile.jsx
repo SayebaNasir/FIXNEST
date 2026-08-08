@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Star, MapPin, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Star, MapPin, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
 import BookingModal from '../components/BookingModal';
 import { AuthContext } from '../context/AuthContext';
 
@@ -16,7 +16,7 @@ const ProviderProfile = () => {
   useEffect(() => {
     const fetchProvider = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/providers/${id}`);
+        const res = await axios.get(`http://localhost:5001/api/providers/${id}`);
         setData(res.data);
       } catch (error) {
         console.error('Error fetching provider:', error);
@@ -60,12 +60,21 @@ const ProviderProfile = () => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold text-slate-900">{provider.name}</h1>
-                <CheckCircle2 className="w-6 h-6 text-blue-500" />
+                {provider.verificationStatus === 'verified' ? (
+                  <ShieldCheck className="w-6 h-6 text-emerald-500" />
+                ) : (
+                  <CheckCircle2 className="w-6 h-6 text-blue-500" />
+                )}
               </div>
               <span className="inline-block px-3 py-1 bg-primary-100 text-primary-700 text-sm font-medium rounded-full mb-4">
                 {provider.serviceType}
               </span>
-              <p className="text-slate-600 max-w-2xl">{provider.bio}</p>
+              <div className="mb-4 text-sm font-medium text-slate-600">
+                {provider.verificationStatus === 'verified' ? 'Verified provider' : provider.verificationStatus === 'rejected' ? 'Profile rejected for review' : 'Pending verification'}
+              </div>
+              {provider.bio ? (
+                <p className="text-slate-600 max-w-2xl">{provider.bio}</p>
+              ) : null}
               
               <div className="flex flex-wrap gap-6 mt-6">
                 <div className="flex items-center gap-2">
@@ -104,6 +113,57 @@ const ProviderProfile = () => {
         {/* Portfolio & Availability */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div className="md:col-span-2 space-y-8">
+            {/* Professional Details */}
+            {(provider.experience || provider.qualifications?.length > 0 || provider.certifications?.length > 0) && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-xl font-bold text-slate-900 mb-4">Professional Details</h2>
+                <div className="space-y-6">
+                  {provider.experience && (
+                    <div>
+                      <h3 className="font-semibold text-slate-800 mb-2">Experience</h3>
+                      <p className="text-slate-600">{provider.experience}</p>
+                    </div>
+                  )}
+
+                  {provider.qualifications?.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-slate-800 mb-2">Qualifications</h3>
+                      <div className="space-y-2">
+                        {provider.qualifications.map((item, index) => (
+                          <div key={`${item.qualification || item}-${index}`} className="rounded-lg border border-slate-200 p-3">
+                            <div className="font-medium text-slate-800">{item.qualification || item}</div>
+                            {(item.institution || item.year) && (
+                              <div className="text-sm text-slate-500 mt-1">
+                                {item.institution}{item.institution && item.year ? ' • ' : ''}{item.year}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {provider.certifications?.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-slate-800 mb-2">Certifications</h3>
+                      <div className="space-y-2">
+                        {provider.certifications.map((item, index) => (
+                          <div key={`${item.name || item}-${index}`} className="rounded-lg border border-slate-200 p-3">
+                            <div className="font-medium text-slate-800">{item.name || item}</div>
+                            {(item.link || item.filePath) && (
+                              <div className="text-sm text-slate-500 mt-1">
+                                {item.link ? `Link: ${item.link}` : `File: ${item.fileName || 'Uploaded document'}`}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Portfolio */}
             {provider.portfolio && provider.portfolio.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
