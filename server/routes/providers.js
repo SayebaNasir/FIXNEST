@@ -7,6 +7,7 @@ const Provider = require('../models/Provider');
 const Review = require('../models/Review');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const Booking = require('../models/Booking');
 const auth = require('../middleware/auth');
 
 const uploadDir = path.join(__dirname, '..', 'uploads', 'certifications');
@@ -57,8 +58,8 @@ const normalizeAvailability = (value) => {
       day,
       slots: Array.isArray(existingEntry?.slots)
         ? existingEntry.slots
-            .map((slot) => (typeof slot === 'string' ? slot.trim() : ''))
-            .filter(Boolean)
+          .map((slot) => (typeof slot === 'string' ? slot.trim() : ''))
+          .filter(Boolean)
         : []
     };
   });
@@ -226,6 +227,103 @@ router.get('/profile/me', auth, async (req, res) => {
     res.status(500).json({
       message: 'Server error fetching profile'
     });
+  }
+});
+
+
+// ---------------------------------------------------------
+// GET /api/providers/analytics/me
+// Get analytics for logged-in provider
+// ---------------------------------------------------------
+router.get('/analytics/me', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'provider') {
+      return res.status(403).json({ message: 'Only providers can access analytics' });
+    }
+
+    const provider = await Provider.findOne({ userId: req.user.id });
+    if (!provider) {
+      return res.status(404).json({ message: 'Provider profile not found' });
+    }
+
+    // 1. Fetch Bookings & Revenue
+    const bookings = await Booking.find({ providerId: provider._id });
+
+    let totalCompletedJobs = 0;
+    let totalRevenue = 0;
+    const monthlyEarnings = Array(12).fill(0);
+    const serviceDemand = {}; // Track demand by time/month
+
+    const price = provider.pricePerHour || 0;
+
+    bookings.forEach(booking => {
+      const bookingDate = new Date(booking.date);
+      const month = bookingDate.getMonth(); // 0-11
+
+      // Track Peak Demand (count all bookings, not just completed, or just completed?)
+      // Let's track all bookings for peak demand
+      const monthName = bookingDate.toLocaleString('default', { month: 'short' });
+      serviceDemand[monthName] = (serviceDemand[monthName] || 0) + 1;
+
+      if (booking.status === 'completed') {
+        totalCompletedJobs += 1;
+        // Assume 1 job = 1 hour for revenue calculation
+        const earned = price * 1;
+        //const earned = booking.price ?? provider.pricePerHour ?? 0;
+        totalRevenue += earned;
+        if (!isNaN(month)) {
+          monthlyEarnings[month] += earned;
+        }
+      }
+    });
+
+    // Format Peak Demand
+    const peakDemand = Object.keys(serviceDemand).map(month => ({
+      month,
+      bookings: serviceDemand[month]
+    })).sort((a, b) => b.bookings - a.bookings); // Highest first
+
+    // 2. Fetch Reviews & Rating Trends
+    const reviews = await Review.find({ providerId: provider._id });
+
+    let averageRating = 0;
+    const ratingTrends = []; // average rating per month
+    const ratingByMonth = {};
+
+    if (reviews.length > 0) {
+      const totalStars = reviews.reduce((sum, r) => sum + r.rating, 0);
+      averageRating = (totalStars / reviews.length).toFixed(1);
+
+      reviews.forEach(review => {
+        if (!review.date) return;
+        const d = new Date(review.date);
+        const m = d.toLocaleString('default', { month: 'short' });
+        if (!ratingByMonth[m]) ratingByMonth[m] = { total: 0, count: 0 };
+        ratingByMonth[m].total += review.rating;
+        ratingByMonth[m].count += 1;
+      });
+
+      for (const [month, data] of Object.entries(ratingByMonth)) {
+        ratingTrends.push({
+          month,
+          average: (data.total / data.count).toFixed(1)
+        });
+      }
+    }
+
+    res.json({
+      totalCompletedJobs,
+      totalRevenue,
+      monthlyEarnings,
+      averageRating,
+      totalReviews: reviews.length,
+      peakDemand,
+      ratingTrends
+    });
+
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({ message: 'Server error fetching analytics' });
   }
 });
 

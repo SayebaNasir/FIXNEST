@@ -5,6 +5,7 @@ import SearchPage from './pages/SearchPage';
 import ProviderProfile from './pages/ProviderProfile';
 import ProviderDashboard from './pages/ProviderDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import MyRequests from './pages/MyRequests';
 import LoginModal from './components/LoginModal';
 import { useContext } from 'react';
 
@@ -31,6 +32,11 @@ const NavBar = () => {
                 {user.role === 'provider' && (
                   <a href="/dashboard" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                     Dashboard
+                  </a>
+                )}
+                {user.role !== 'provider' && user.role !== 'admin' && (
+                  <a href="/my-requests" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                    My Requests
                   </a>
                 )}
                 {user.role === 'admin' && (
@@ -73,6 +79,7 @@ function App() {
             <Route path="/provider/:id" element={<ProviderProfile />} />
             <Route path="/dashboard" element={<ProviderDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/my-requests" element={<MyRequests />} />
           </Routes>
         </main>
         <LoginModal />

@@ -64,6 +64,70 @@ const ProviderDashboard = () => {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
 
+  const [activeTab, setActiveTab] = useState('profile');
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [providerBookings, setProviderBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+  const [updatingBookingId, setUpdatingBookingId] = useState(null);
+
+  useEffect(() => {
+    if (activeTab === 'analytics' && !analyticsData) {
+      const fetchAnalytics = async () => {
+        setLoadingAnalytics(true);
+        try {
+          const res = await axios.get(`${API_URL}/api/providers/analytics/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setAnalyticsData(res.data);
+        } catch (error) {
+          console.error('Error fetching analytics:', error);
+          setMessage('Unable to load analytics.');
+          setMessageType('error');
+        } finally {
+          setLoadingAnalytics(false);
+        }
+      };
+      fetchAnalytics();
+    }
+  }, [activeTab, analyticsData, token]);
+
+  useEffect(() => {
+    if (activeTab === 'requests') {
+      const fetchBookings = async () => {
+        setLoadingBookings(true);
+        try {
+          const res = await axios.get(`${API_URL}/api/bookings/provider`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setProviderBookings(res.data);
+        } catch (error) {
+          console.error('Error fetching requests:', error);
+        } finally {
+          setLoadingBookings(false);
+        }
+      };
+      fetchBookings();
+    }
+  }, [activeTab, token]);
+
+  const handleBookingStatusUpdate = async (bookingId, newStatus) => {
+    setUpdatingBookingId(bookingId);
+    try {
+      await axios.patch(`${API_URL}/api/bookings/${bookingId}/status`, { status: newStatus }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProviderBookings(prev =>
+        prev.map(b => b._id === bookingId ? { ...b, status: newStatus } : b)
+      );
+    } catch (error) {
+      console.error('Failed to update booking status:', error);
+    } finally {
+      setUpdatingBookingId(null);
+    }
+  };
+
+
   const [formData, setFormData] = useState({
     name: '',
     serviceType: 'Plumbing',
@@ -478,6 +542,40 @@ const ProviderDashboard = () => {
             <div className="font-semibold">Verification status: {formData.verificationStatus === 'verified' ? 'Verified' : formData.verificationStatus === 'rejected' ? 'Rejected' : 'Pending review'}</div>
             {formData.rejectionReason ? <div className="mt-1 text-sm">Reason: {formData.rejectionReason}</div> : null}
           </div>
+
+          {/* Tabs */}
+          <div className="mt-6 flex space-x-4 border-b border-slate-200">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`pb-3 font-semibold text-sm transition-colors ${
+                activeTab === 'profile'
+                  ? 'border-b-2 border-primary-600 text-primary-700'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Profile Settings
+            </button>
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`pb-3 font-semibold text-sm transition-colors ${
+                activeTab === 'requests'
+                  ? 'border-b-2 border-primary-600 text-primary-700'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Service Requests
+            </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`pb-3 font-semibold text-sm transition-colors ${
+                activeTab === 'analytics'
+                  ? 'border-b-2 border-primary-600 text-primary-700'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Analytics & Insights
+            </button>
+          </div>
         </div>
 
         {/* Messages */}
@@ -495,6 +593,7 @@ const ProviderDashboard = () => {
           </div>
         )}
 
+        {activeTab === 'profile' && (
         <form onSubmit={handleSubmit} className="space-y-8">
 
           {/* Basic Information */}
@@ -909,6 +1008,176 @@ const ProviderDashboard = () => {
           </div>
 
         </form>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div className="space-y-8 mt-8">
+            {loadingAnalytics ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+              </div>
+            ) : analyticsData ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-center items-center">
+                    <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Total Revenue</h3>
+                    <p className="text-3xl font-extrabold text-emerald-600">৳{analyticsData.totalRevenue}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-center items-center">
+                    <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Completed Jobs</h3>
+                    <p className="text-3xl font-extrabold text-blue-600">{analyticsData.totalCompletedJobs}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-center items-center">
+                    <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Average Rating</h3>
+                    <p className="text-3xl font-extrabold text-amber-500">{analyticsData.averageRating} / 5.0</p>
+                    <p className="text-xs text-slate-400 mt-1">From {analyticsData.totalReviews} review(s)</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h3 className="text-xl font-bold text-slate-900 mb-4">Peak Demand Analysis</h3>
+                  <p className="text-sm text-slate-500 mb-6">Your busiest booking months based on all incoming requests.</p>
+                  {analyticsData.peakDemand.length > 0 ? (
+                    <div className="space-y-3">
+                      {analyticsData.peakDemand.map((pd, index) => (
+                        <div key={pd.month} className="flex justify-between items-center border-b pb-2 last:border-0 last:pb-0">
+                          <span className="font-semibold text-slate-700">{index + 1}. {pd.month}</span>
+                          <span className="text-slate-500 bg-slate-100 px-3 py-1 rounded-full text-sm font-medium">{pd.bookings} Booking(s)</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-500">Not enough booking data to analyze peak demand.</p>
+                  )}
+                </div>
+
+                {analyticsData.ratingTrends.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 className="text-xl font-bold text-slate-900 mb-4">Rating Trends (By Month)</h3>
+                    <div className="flex space-x-6 overflow-x-auto pb-2">
+                      {analyticsData.ratingTrends.map((rt) => (
+                        <div key={rt.month} className="flex flex-col items-center bg-slate-50 p-4 rounded-xl min-w-[100px] border border-slate-200">
+                          <span className="text-2xl font-bold text-amber-500 mb-1">{rt.average}</span>
+                          <span className="text-sm font-medium text-slate-600">{rt.month}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12 text-slate-500">
+                Failed to load analytics data.
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'requests' && (
+          <div className="space-y-4 mt-8">
+            <h2 className="text-xl font-bold text-slate-900">Incoming Service Requests</h2>
+            <p className="text-sm text-slate-500 mb-4">Review and respond to homeowner booking requests.</p>
+            {loadingBookings ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+              </div>
+            ) : providerBookings.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 text-slate-400">
+                <div className="text-5xl mb-4">📋</div>
+                <p className="font-semibold text-lg">No requests yet</p>
+                <p className="text-sm mt-1">When homeowners book your service, requests will appear here.</p>
+              </div>
+            ) : (
+              providerBookings.map((booking) => {
+                const STATUS_CFG = {
+                  pending:      { label: 'Pending',      color: 'bg-amber-100 text-amber-700 border-amber-200' },
+                  accepted:     { label: 'Accepted',     color: 'bg-blue-100 text-blue-700 border-blue-200' },
+                  rejected:     { label: 'Rejected',     color: 'bg-red-100 text-red-700 border-red-200' },
+                  'in-progress':{ label: 'In Progress',  color: 'bg-violet-100 text-violet-700 border-violet-200' },
+                  completed:    { label: 'Completed',    color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+                };
+                const cfg = STATUS_CFG[booking.status] || { label: booking.status, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                const isUpdating = updatingBookingId === booking._id;
+
+                return (
+                  <div key={booking._id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div className="flex justify-between items-start gap-4 flex-wrap">
+                      <div>
+                        <p className="font-bold text-slate-900">{booking.userName}</p>
+                        <p className="text-sm text-slate-500">{booking.userEmail}</p>
+                      </div>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${cfg.color}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Date</p>
+                        <p className="text-slate-700 font-medium mt-0.5">{booking.date}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Time</p>
+                        <p className="text-slate-700 font-medium mt-0.5">{booking.time}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Address</p>
+                        <p className="text-slate-700 font-medium mt-0.5">{booking.userAddress}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Problem Description</p>
+                        <p className="text-slate-700 mt-0.5">{booking.description}</p>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap gap-2">
+                      {booking.status === 'pending' && (
+                        <>
+                          <button
+                            disabled={isUpdating}
+                            onClick={() => handleBookingStatusUpdate(booking._id, 'accepted')}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors"
+                          >
+                            {isUpdating ? 'Updating...' : '✓ Accept'}
+                          </button>
+                          <button
+                            disabled={isUpdating}
+                            onClick={() => handleBookingStatusUpdate(booking._id, 'rejected')}
+                            className="px-4 py-2 bg-red-50 hover:bg-red-100 disabled:opacity-50 text-red-600 border border-red-200 text-sm font-bold rounded-xl transition-colors"
+                          >
+                            {isUpdating ? 'Updating...' : '✕ Reject'}
+                          </button>
+                        </>
+                      )}
+                      {booking.status === 'accepted' && (
+                        <button
+                          disabled={isUpdating}
+                          onClick={() => handleBookingStatusUpdate(booking._id, 'in-progress')}
+                          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors"
+                        >
+                          {isUpdating ? 'Updating...' : '▶ Mark In Progress'}
+                        </button>
+                      )}
+                      {booking.status === 'in-progress' && (
+                        <button
+                          disabled={isUpdating}
+                          onClick={() => handleBookingStatusUpdate(booking._id, 'completed')}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors"
+                        >
+                          {isUpdating ? 'Updating...' : '✔ Mark Completed'}
+                        </button>
+                      )}
+                      {(booking.status === 'rejected' || booking.status === 'completed') && (
+                        <span className="text-xs text-slate-400 italic self-center">No further actions available</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
 
       </div>
     </div>

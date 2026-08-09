@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+const statusHistorySchema = new mongoose.Schema({
+  status: { type: String, required: true },
+  changedAt: { type: Date, default: Date.now },
+  note: { type: String, default: '' }
+}, { _id: false });
+
 const bookingSchema = new mongoose.Schema({
   providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Provider', required: true },
   userName: { type: String, required: true },
@@ -8,7 +14,12 @@ const bookingSchema = new mongoose.Schema({
   description: { type: String, required: true },
   date: { type: String, required: true },
   time: { type: String, required: true },
-  status: { type: String, enum: ['pending', 'accepted', 'in-progress', 'completed'], default: 'pending' },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected', 'in-progress', 'completed'],
+    default: 'pending'
+  },
+  statusHistory: { type: [statusHistorySchema], default: [] },
   createdAt: { type: Date, default: Date.now }
 });
 
