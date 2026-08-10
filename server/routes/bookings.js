@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
 const Provider = require('../models/Provider');
+const auth = require('../middleware/auth');
 
 const normalizeTimeSlot = (slot) => {
   if (typeof slot !== 'string') return '';
@@ -17,7 +18,7 @@ const normalizeTimeSlot = (slot) => {
 };
 
 // Create a new booking request
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
     const { providerId, userName, userEmail, userAddress, description, date, time } = req.body;
 
@@ -29,6 +30,10 @@ router.post('/', async (req, res) => {
     const provider = await Provider.findById(providerId);
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found' });
+    }
+
+    if (String(provider.userId) === String(req.user.id)) {
+      return res.status(403).json({ message: 'You cannot book your own service.' });
     }
 
     const requestedDay = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });

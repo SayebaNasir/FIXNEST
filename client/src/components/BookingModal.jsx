@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { X, Calendar, Clock } from 'lucide-react';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
 const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,8 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     time: ''
   });
   const [status, setStatus] = useState('idle'); // idle, submitting, success, error
+  const [errorMessage, setErrorMessage] = useState('');
+  const { token } = useContext(AuthContext);
 
   useEffect(() => {
     if (isOpen) {
@@ -37,6 +40,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
         time: initialSlot?.time || ''
       });
       setStatus('idle');
+      setErrorMessage('');
     }
   }, [isOpen, initialSlot]);
 
@@ -49,11 +53,14 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('submitting');
+    setErrorMessage('');
     
     try {
       await axios.post('http://localhost:5001/api/bookings', {
         ...formData,
         providerId: provider._id
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       setStatus('success');
       setTimeout(() => {
@@ -65,6 +72,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
       }, 2000);
     } catch (error) {
       console.error('Booking failed', error);
+      setErrorMessage(error.response?.data?.message || 'Failed to submit request. Please try again.');
       setStatus('error');
     }
   };
@@ -169,7 +177,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
               </div>
 
               {status === 'error' && (
-                <div className="text-red-500 text-sm">Failed to submit request. Please try again.</div>
+                <div className="text-red-500 text-sm">{errorMessage}</div>
               )}
 
               <button 

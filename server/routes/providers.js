@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const router = express.Router();
 
 const Provider = require('../models/Provider');
@@ -31,6 +32,33 @@ const saveCertificationFile = (fileData, fileName) => {
 };
 
 const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const getOptionalUser = async (req) => {
+  const authHeader = req.header('Authorization');
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  try {
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      ...decoded,
+      id: user._id.toString(),
+      role: user.role,
+      accountStatus: user.accountStatus
+    };
+  } catch (error) {
+    return null;
+  }
+};
 
 const parseArrayField = (value) => {
   if (Array.isArray(value)) return value;
@@ -114,14 +142,29 @@ const normalizeCertifications = (value) => {
 const notifyAdmins = async (provider) => {
   const admins = await User.find({ role: 'admin', accountStatus: 'active' });
 
-  const notifications = admins.map((admin) => ({
-    recipientId: admin._id,
-    type: 'provider_verification',
-    title: 'New provider profile submitted',
-    message: `Provider ${provider.name || 'Unknown'} has submitted a profile for review.`,
-    providerId: provider._id,
-    isRead: false
-  }));
+  const notifications = [];
+
+  for (const admin of admins) {
+    const existingUnread = await Notification.findOne({
+      recipientId: admin._id,
+      providerId: provider._id,
+      type: 'provider_verification',
+      title: 'New provider profile submitted',
+      isRead: false
+    });
+
+    if (!existingUnread) {
+      notifications.push({
+        recipientId: admin._id,
+        type: 'provider_verification',
+        title: 'New provider profile submitted',
+        message: `Provider ${provider.name || 'Unknown'} has submitted a profile for review.`,
+        providerId: provider._id,
+        providerName: provider.name || 'Unknown',
+        isRead: false
+      });
+    }
+  }
 
   if (notifications.length > 0) {
     await Notification.insertMany(notifications);
@@ -137,6 +180,7 @@ const notifyProvider = async (provider, title, message) => {
     title,
     message,
     providerId: provider._id,
+    providerName: provider.name || 'Unknown',
     isRead: false
   });
 };
@@ -148,10 +192,15 @@ const notifyProvider = async (provider, title, message) => {
 router.get('/', async (req, res) => {
   try {
     const { serviceType, rating, maxPrice, lat, lng, radius } = req.query;
+    const currentUser = await getOptionalUser(req);
 
     const query = {
       verificationStatus: 'verified'
     };
+
+    if (currentUser?.role === 'provider') {
+      query.userId = { $ne: currentUser.id };
+    }
 
     if (serviceType) {
       query.serviceType = {
@@ -420,6 +469,43 @@ router.get('/admin/notifications', auth, async (req, res) => {
   }
 });
 
+router.get('/admin/notifications/unread-count', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can view notifications' });
+    }
+
+    const count = await Notification.countDocuments({ recipientId: req.user.id, isRead: false });
+    res.json({ count });
+  } catch (error) {
+    console.error('Error fetching notification count:', error);
+    res.status(500).json({ message: 'Server error fetching notification count' });
+  }
+});
+
+router.post('/admin/notifications/:id/read', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can update notifications' });
+    }
+
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, recipientId: req.user.id },
+      { $set: { isRead: true } },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    res.json(notification);
+  } catch (error) {
+    console.error('Error updating notification:', error);
+    res.status(500).json({ message: 'Server error updating notification' });
+  }
+});
+
 // ---------------------------------------------------------
 // POST /api/providers/admin/:id/verify
 // Approve a provider profile
@@ -501,6 +587,8 @@ router.delete('/admin/:id/account', auth, async (req, res) => {
     if (user) {
       user.accountStatus = 'deleted';
       user.deletedAt = new Date();
+      user.deletedBy = req.user.id;
+      user.deletionReason = req.body.reason || 'Provider account deactivated by administrator.';
       await user.save();
     }
 

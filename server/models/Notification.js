@@ -6,6 +6,7 @@ const notificationSchema = new mongoose.Schema({
   title: { type: String, required: true },
   message: { type: String, required: true },
   providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Provider', default: null },
+  providerName: { type: String, default: '' },
   isRead: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });

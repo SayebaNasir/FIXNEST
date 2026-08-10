@@ -1,8 +1,39 @@
-import React from 'react';
-import { Star, MapPin, Clock, CalendarCheck, ShieldCheck } from 'lucide-react';
+import React, { useContext } from 'react';
+import { Star, MapPin, Clock, CalendarCheck, ShieldCheck, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
-const ProviderCard = ({ provider, onBookNow }) => {
+const ProviderCard = ({ provider, onBookNow, onToggleFavorite, isFavorite = false }) => {
+  const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
+
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    if (typeof onToggleFavorite === 'function') {
+      await onToggleFavorite(provider);
+      return;
+    }
+
+    try {
+      if (isFavorite) {
+        await axios.delete(`http://localhost:5001/api/auth/favorites/${provider._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await axios.post(`http://localhost:5001/api/auth/favorites/${provider._id}`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating favorite:', error);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
       <div className="p-5">
@@ -37,6 +68,12 @@ const ProviderCard = ({ provider, onBookNow }) => {
         </div>
 
         <div className="mt-6 flex gap-3">
+          <button
+            onClick={handleFavoriteToggle}
+            className={`rounded-lg border px-3 py-2 text-sm font-medium ${isFavorite ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-700'}`}
+          >
+            <span className="flex items-center gap-2"><Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} /> {isFavorite ? 'Favorited' : 'Favorite'}</span>
+          </button>
           <Link
             to={`/provider/${provider._id}`}
             className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-center py-2.5 rounded-lg font-medium transition-colors"
@@ -44,7 +81,7 @@ const ProviderCard = ({ provider, onBookNow }) => {
             View Profile
           </Link>
           <button
-            onClick={() => onBookNow(provider)}
+            onClick={() => (typeof onBookNow === 'function' ? onBookNow(provider) : null)}
             className="flex-1 bg-primary-600 hover:bg-primary-700 text-white text-center py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
           >
             <CalendarCheck className="w-4 h-4" />

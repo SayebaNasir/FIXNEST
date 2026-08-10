@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Star, MapPin, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
 import BookingModal from '../components/BookingModal';
@@ -7,11 +7,15 @@ import { AuthContext } from '../context/AuthContext';
 
 const ProviderProfile = () => {
   const { id } = useParams();
-  const { user, setIsLoginModalOpen } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [preselectedSlot, setPreselectedSlot] = useState({ day: null, time: null });
+  const [reviewReason, setReviewReason] = useState('');
+  const [reviewMessage, setReviewMessage] = useState('');
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     const fetchProvider = async () => {
@@ -26,6 +30,33 @@ const ProviderProfile = () => {
     };
     fetchProvider();
   }, [id]);
+
+  useEffect(() => {
+    if (!loading && data?.provider && user?.role === 'provider' && String(data.provider.userId) === String(user.id)) {
+      navigate('/dashboard');
+    }
+  }, [data, loading, navigate, user]);
+
+  useEffect(() => {
+    const fetchFavoriteState = async () => {
+      if (!user || user.role !== 'user' || !token) {
+        setIsFavorite(false);
+        return;
+      }
+
+      try {
+        const res = await axios.get('http://localhost:5001/api/auth/favorites', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const favorites = res.data || [];
+        setIsFavorite(favorites.some((item) => item._id === id));
+      } catch (error) {
+        console.error('Error loading favorite state:', error);
+      }
+    };
+
+    fetchFavoriteState();
+  }, [id, token, user]);
 
   if (loading) {
     return (
@@ -45,6 +76,54 @@ const ProviderProfile = () => {
   }
 
   const { provider, reviews } = data;
+
+  const handleAdminVerify = async () => {
+    if (!user || user.role !== 'admin') return;
+    try {
+      const res = await axios.post(`http://localhost:5001/api/providers/admin/${provider._id}/verify`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setReviewMessage(res.data.message || 'Provider verified');
+      setData((prev) => prev ? { ...prev, provider: { ...prev.provider, verificationStatus: 'verified', rejectionReason: '' } } : prev);
+    } catch (error) {
+      setReviewMessage(error.response?.data?.message || 'Unable to verify provider');
+    }
+  };
+
+  const handleAdminReject = async () => {
+    if (!user || user.role !== 'admin') return;
+    try {
+      const res = await axios.post(`http://localhost:5001/api/providers/admin/${provider._id}/reject`, { reason: reviewReason }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setReviewMessage(res.data.message || 'Provider rejected');
+      setData((prev) => prev ? { ...prev, provider: { ...prev.provider, verificationStatus: 'rejected', rejectionReason: reviewReason } } : prev);
+    } catch (error) {
+      setReviewMessage(error.response?.data?.message || 'Unable to reject provider');
+    }
+  };
+
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    try {
+      if (isFavorite) {
+        await axios.delete(`http://localhost:5001/api/auth/favorites/${provider._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await axios.post(`http://localhost:5001/api/auth/favorites/${provider._id}`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      setIsFavorite((prev) => !prev);
+    } catch (error) {
+      console.error('Error updating favorite:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
@@ -72,6 +151,7 @@ const ProviderProfile = () => {
               <div className="mb-4 text-sm font-medium text-slate-600">
                 {provider.verificationStatus === 'verified' ? 'Verified provider' : provider.verificationStatus === 'rejected' ? 'Profile rejected for review' : 'Pending verification'}
               </div>
+              {provider.rejectionReason ? <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">Rejection note: {provider.rejectionReason}</div> : null}
               {provider.bio ? (
                 <p className="text-slate-600 max-w-2xl">{provider.bio}</p>
               ) : null}
@@ -92,20 +172,39 @@ const ProviderProfile = () => {
               </div>
             </div>
             
-            <div className="mt-6 md:mt-0">
-              <button 
-                onClick={() => {
-                  if (!user) {
-                    setIsLoginModalOpen(true);
-                    return;
-                  }
-                  setPreselectedSlot({ day: null, time: null }); 
-                  setIsModalOpen(true); 
-                }}
-                className="w-full md:w-auto px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-colors shadow-sm"
-              >
-                Book Now
-              </button>
+            <div className="mt-6 md:mt-0 space-y-3">
+              {user?.role === 'admin' && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-sm font-semibold text-slate-800">Admin review</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button onClick={handleAdminVerify} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Approve / Verify</button>
+                    <button onClick={handleAdminReject} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white">Reject Verification</button>
+                  </div>
+                  <textarea value={reviewReason} onChange={(e) => setReviewReason(e.target.value)} className="mt-3 w-full rounded-lg border border-slate-300 p-2 text-sm" rows="2" placeholder="Optional rejection reason" />
+                  {reviewMessage ? <div className="mt-2 text-sm text-slate-600">{reviewMessage}</div> : null}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleFavoriteToggle}
+                  className={`rounded-xl border px-4 py-3 text-sm font-semibold ${isFavorite ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-700'}`}
+                >
+                  {isFavorite ? '♥ Favorited' : '♡ Add to Favorites'}
+                </button>
+                <button 
+                  onClick={() => {
+                    if (!user) {
+                      setIsLoginModalOpen(true);
+                      return;
+                    }
+                    setPreselectedSlot({ day: null, time: null }); 
+                    setIsModalOpen(true); 
+                  }}
+                  className="w-full md:w-auto px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-colors shadow-sm"
+                >
+                  Book Now
+                </button>
+              </div>
             </div>
           </div>
         </div>
