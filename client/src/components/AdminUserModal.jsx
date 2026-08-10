@@ -6,21 +6,29 @@ const AdminUserModal = ({ user, token, onClose, onUpdated }) => {
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (!user) return null;
 
+  const isDeleted = user.accountStatus === 'deleted';
+
   const handleDeactivate = async () => {
     setLoading(true);
+    setMessage('');
     try {
       const res = await axios.post(`http://localhost:5001/api/auth/admin/users/${user._id}/deactivate`, { reason }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMessage(res.data.message || 'User deactivated');
+      setMessage(res.data.message || 'User account deleted');
       if (typeof onUpdated === 'function') {
         onUpdated();
       }
+      setTimeout(() => {
+        onClose();
+      }, 300);
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Unable to deactivate user');
+      console.error('Error deleting user account:', error);
+      setMessage(error.response?.data?.message || 'Unable to delete this account right now.');
     } finally {
       setLoading(false);
     }
@@ -42,7 +50,12 @@ const AdminUserModal = ({ user, token, onClose, onUpdated }) => {
             <div><div className="font-semibold text-slate-900">Name</div><div>{user.name}</div></div>
             <div><div className="font-semibold text-slate-900">Email</div><div>{user.email}</div></div>
             <div><div className="font-semibold text-slate-900">Role</div><div className="capitalize">{user.role}</div></div>
-            <div><div className="font-semibold text-slate-900">Account status</div><div className="capitalize">{user.accountStatus || 'active'}</div></div>
+            <div>
+              <div className="font-semibold text-slate-900">Account status</div>
+              <div className="mt-1 inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide">
+                {isDeleted ? 'Deleted' : (user.accountStatus || 'Active')}
+              </div>
+            </div>
           </div>
 
           {user.providerProfile && (
@@ -57,20 +70,38 @@ const AdminUserModal = ({ user, token, onClose, onUpdated }) => {
           )}
 
           {user.deletionReason ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-700">Deletion note: {user.deletionReason}</div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-700">
+              <div className="font-semibold">Deletion note</div>
+              <div className="mt-1">{user.deletionReason}</div>
+            </div>
           ) : null}
 
           {message ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-700">{message}</div> : null}
 
-          <div>
-            <label className="mb-2 block font-semibold text-slate-900">Delete / deactivate note</label>
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows="3" className="w-full rounded-lg border border-slate-300 p-2" placeholder="Reason for deactivation" />
-          </div>
+          {!isDeleted && !confirmOpen && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <div className="font-semibold">Delete this user?</div>
+              <div className="mt-1">This action will prevent the account from being used again and will show a deleted status to admins.</div>
+            </div>
+          )}
+
+          {!isDeleted && confirmOpen && (
+            <div>
+              <label className="mb-2 block font-semibold text-slate-900">Delete note</label>
+              <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows="3" className="w-full rounded-lg border border-slate-300 p-2" placeholder="Reason for deleting this account" />
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
           <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
-          <button onClick={handleDeactivate} disabled={loading} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{loading ? 'Processing...' : 'Delete User'}</button>
+          {isDeleted ? (
+            <div className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">Account Deleted</div>
+          ) : confirmOpen ? (
+            <button onClick={handleDeactivate} disabled={loading} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{loading ? 'Deleting...' : 'Delete User'}</button>
+          ) : (
+            <button onClick={() => setConfirmOpen(true)} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">Delete User</button>
+          )}
         </div>
       </div>
     </div>

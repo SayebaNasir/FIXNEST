@@ -682,10 +682,10 @@ router.post('/admin/:id/reject', auth, async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// DELETE /api/providers/admin/:id/account
+// POST/DELETE /api/providers/admin/:id/account
 // Deactivate a provider account
 // ---------------------------------------------------------
-router.delete('/admin/:id/account', auth, async (req, res) => {
+const deactivateProviderAccount = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only admins can deactivate accounts' });
@@ -698,10 +698,14 @@ router.delete('/admin/:id/account', auth, async (req, res) => {
 
     const user = await User.findById(provider.userId);
     if (user) {
+      if (user.accountStatus === 'deleted') {
+        return res.status(409).json({ message: 'This provider account is already deleted.' });
+      }
+
       user.accountStatus = 'deleted';
       user.deletedAt = new Date();
       user.deletedBy = req.user.id;
-      user.deletionReason = req.body.reason || 'Provider account deactivated by administrator.';
+      user.deletionReason = req.body?.reason || req.query?.reason || 'Provider account deactivated by administrator.';
       await user.save();
     }
 
@@ -712,7 +716,10 @@ router.delete('/admin/:id/account', auth, async (req, res) => {
     console.error('Error deactivating account:', error);
     res.status(500).json({ message: 'Server error deactivating account' });
   }
-});
+};
+
+router.post('/admin/:id/account', auth, deactivateProviderAccount);
+router.delete('/admin/:id/account', auth, deactivateProviderAccount);
 
 // ---------------------------------------------------------
 // GET /api/providers/:id

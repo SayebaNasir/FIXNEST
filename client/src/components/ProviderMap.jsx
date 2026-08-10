@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -57,9 +58,14 @@ const ProviderMap = ({ providers, userLocation, radius }) => {
             return (
               <Marker key={provider._id} position={[lat, lng]}>
                 <Popup>
-                  <div className="font-medium text-slate-900">{provider.name}</div>
-                  <div className="text-sm text-slate-600">{provider.serviceType}</div>
-                  <div className="text-sm font-bold text-primary-600">৳{provider.pricePerHour}/hr</div>
+                  <div className="space-y-2">
+                    <div className="font-semibold text-slate-900">{provider.name}</div>
+                    <div className="text-sm text-slate-600">{provider.serviceType}</div>
+                    <div className="text-sm font-bold text-primary-600">৳{provider.pricePerHour}/hr</div>
+                    <Link to={`/provider/${provider._id}`} className="inline-flex items-center text-sm font-semibold text-primary-600 hover:underline">
+                      View profile →
+                    </Link>
+                  </div>
                 </Popup>
               </Marker>
             );
