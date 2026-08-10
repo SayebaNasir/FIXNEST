@@ -58,6 +58,7 @@ router.post('/', async (req, res) => {
       description,
       date,
       time: requestedSlot,
+      price: provider.pricePerHour || 0,
       status: 'pending',
       statusHistory: [{ status: 'pending', note: 'Request submitted by homeowner' }]
     });
@@ -209,6 +210,150 @@ router.patch('/:id/status', auth, async (req, res) => {
   } catch (error) {
     console.error('Error updating booking status:', error);
     res.status(500).json({ message: 'Server error updating booking status' });
+  }
+});
+
+// -----------------------------------------------
+// GET /pending-count — Provider gets count of pending requests (for badge)
+// -----------------------------------------------
+router.get('/pending-count', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'provider') {
+      return res.status(403).json({ message: 'Only providers can access this route' });
+    }
+
+    const provider = await Provider.findOne({ userId: req.user.id });
+    if (!provider) {
+      return res.status(404).json({ message: 'Provider profile not found' });
+    }
+
+    const count = await Booking.countDocuments({ providerId: provider._id, status: 'pending' });
+    res.json({ pendingCount: count });
+  } catch (error) {
+    console.error('Error fetching pending count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// -----------------------------------------------
+// GET /:id/reviews — Get reviews for a specific booking
+// -----------------------------------------------
+router.get('/:id/reviews', async (req, res) => {
+  try {
+    const Review = require('../models/Review');
+    const reviews = await Review.find({ bookingId: req.params.id });
+    res.json(reviews);
+  } catch (error) {
+    console.error('Error fetching booking reviews:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// -----------------------------------------------
+// POST /:id/review — Submit a review for a completed booking
+// -----------------------------------------------
+router.post('/:id/review', async (req, res) => {
+  try {
+    const Review = require('../models/Review');
+    const User = require('../models/User');
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (booking.status !== 'completed') {
+      return res.status(400).json({ message: 'Can only review completed bookings' });
+    }
+
+    const {
+      reviewerType, reviewerName, comment,
+      professionalism, quality, punctuality,
+      behavior, paymentPromptness
+    } = req.body;
+
+    if (!reviewerType || !reviewerName) {
+      return res.status(400).json({ message: 'reviewerType and reviewerName are required' });
+    }
+
+    // Check for duplicate
+    const existing = await Review.findOne({ bookingId: booking._id, reviewerType });
+    if (existing) {
+      return res.status(409).json({ message: 'You have already reviewed this booking' });
+    }
+
+    let rating = 0;
+    let targetType = '';
+    let targetEmail = '';
+    const reviewData = {
+      bookingId: booking._id,
+      providerId: booking.providerId,
+      reviewerType,
+      reviewerName,
+      comment: comment || ''
+    };
+
+    if (reviewerType === 'homeowner') {
+      // Homeowner rates provider
+      targetType = 'provider';
+      const p = Number(professionalism) || 3;
+      const q = Number(quality) || 3;
+      const punc = Number(punctuality) || 3;
+      rating = Math.round(((p + q + punc) / 3) * 10) / 10;
+      Object.assign(reviewData, {
+        targetType,
+        professionalism: p,
+        quality: q,
+        punctuality: punc,
+        rating
+      });
+    } else if (reviewerType === 'provider') {
+      // Provider rates homeowner
+      targetType = 'homeowner';
+      targetEmail = booking.userEmail;
+      const b = Number(behavior) || 3;
+      const pp = Number(paymentPromptness) || 3;
+      rating = Math.round(((b + pp) / 2) * 10) / 10;
+      Object.assign(reviewData, {
+        targetType,
+        targetEmail,
+        behavior: b,
+        paymentPromptness: pp,
+        rating
+      });
+    } else {
+      return res.status(400).json({ message: 'Invalid reviewerType' });
+    }
+
+    const review = new Review(reviewData);
+    await review.save();
+
+    // Recalculate target's average rating
+    if (targetType === 'provider') {
+      const allProviderReviews = await Review.find({ providerId: booking.providerId, targetType: 'provider' });
+      const totalStars = allProviderReviews.reduce((sum, r) => sum + r.rating, 0);
+      const avgRating = Math.round((totalStars / allProviderReviews.length) * 10) / 10;
+      await Provider.findByIdAndUpdate(booking.providerId, {
+        rating: avgRating,
+        reviewCount: allProviderReviews.length
+      });
+    } else if (targetType === 'homeowner') {
+      const allHomeownerReviews = await Review.find({ targetType: 'homeowner', targetEmail: booking.userEmail });
+      const totalStars = allHomeownerReviews.reduce((sum, r) => sum + r.rating, 0);
+      const avgRating = Math.round((totalStars / allHomeownerReviews.length) * 10) / 10;
+      await User.updateMany(
+        { email: booking.userEmail },
+        { rating: avgRating, reviewCount: allHomeownerReviews.length }
+      );
+    }
+
+    res.status(201).json({ message: 'Review submitted successfully', review });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: 'You have already reviewed this booking' });
+    }
+    console.error('Error submitting review:', error);
+    res.status(500).json({ message: 'Server error submitting review' });
   }
 });
 

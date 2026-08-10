@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['user', 'provider', 'admin'], default: 'user' },
   accountStatus: { type: String, enum: ['active', 'deleted'], default: 'active' },
   deletedAt: { type: Date, default: null },
+  rating: { type: Number, default: 0 },
+  reviewCount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 

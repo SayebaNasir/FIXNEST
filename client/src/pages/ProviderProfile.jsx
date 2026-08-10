@@ -183,13 +183,20 @@ const ProviderProfile = () => {
                 {reviews.map(review => (
                   <div key={review._id} className="border-b border-slate-100 last:border-0 pb-6 last:pb-0">
                     <div className="flex justify-between items-start mb-2">
-                      <div className="font-medium text-slate-900">{review.userName}</div>
+                      <div className="font-medium text-slate-900">{review.reviewerName || review.userName || 'Anonymous'}</div>
                       <div className="flex text-amber-400">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-current' : 'text-slate-300'}`} />
                         ))}
                       </div>
                     </div>
+                    {review.professionalism && review.quality && review.punctuality && (
+                      <div className="flex gap-4 text-xs text-slate-500 mb-2">
+                        <span>Professionalism: {review.professionalism}</span>
+                        <span>Quality: {review.quality}</span>
+                        <span>Punctuality: {review.punctuality}</span>
+                      </div>
+                    )}
                     <p className="text-slate-600">{review.comment}</p>
                     <div className="text-sm text-slate-400 mt-2">
                       {new Date(review.date).toLocaleDateString()}

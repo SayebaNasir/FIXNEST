@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import axios from 'axios';
+import ReviewModal from '../components/ReviewModal';
 
 const API_URL = 'http://localhost:5001';
 
@@ -34,6 +35,9 @@ const MyRequests = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expandedHistory, setExpandedHistory] = useState(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewBookingId, setReviewBookingId] = useState(null);
+  const [reviewedBookings, setReviewedBookings] = useState({});
 
   const handleSearch = useCallback(async (e) => {
     e.preventDefault();
@@ -53,6 +57,23 @@ const MyRequests = () => {
       setNotifications(notifRes.data);
       setSubmittedEmail(email.trim().toLowerCase());
       setSearched(true);
+
+      // Check which completed bookings are already reviewed by homeowner
+      const completed = bookingsRes.data.filter(b => b.status === 'completed');
+      const reviewChecks = await Promise.all(
+        completed.map(async (b) => {
+          try {
+            const rRes = await axios.get(`${API_URL}/api/bookings/${b._id}/reviews`);
+            const hasHomeownerReview = rRes.data.some(r => r.reviewerType === 'homeowner');
+            return { id: b._id, reviewed: hasHomeownerReview };
+          } catch {
+            return { id: b._id, reviewed: false };
+          }
+        })
+      );
+      const reviewMap = {};
+      reviewChecks.forEach(r => { reviewMap[r.id] = r.reviewed; });
+      setReviewedBookings(prev => ({ ...prev, ...reviewMap }));
 
       // Mark all notifications as read
       if (notifRes.data.length > 0) {
@@ -187,33 +208,25 @@ const MyRequests = () => {
                         </div>
                       </div>
 
-                      {/* Status History Toggle */}
-                      {booking.statusHistory && booking.statusHistory.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-slate-100">
-                          <button
-                            onClick={() => setExpandedHistory(expandedHistory === booking._id ? null : booking._id)}
-                            className="text-xs text-primary-600 font-semibold hover:text-primary-800 transition-colors"
-                          >
-                            {expandedHistory === booking._id ? '▲ Hide' : '▼ Show'} Status History ({booking.statusHistory.length})
-                          </button>
-                          {expandedHistory === booking._id && (
-                            <div className="mt-3 space-y-2">
-                              {booking.statusHistory.map((h, i) => (
-                                <div key={i} className="flex items-start gap-3 text-sm">
-                                  <StatusBadge status={h.status} />
-                                  <div>
-                                    {h.note && <p className="text-slate-600">{h.note}</p>}
-                                    <p className="text-slate-400 text-xs mt-0.5">{formatDate(h.changedAt)}</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
 
-                      <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400">
-                        Submitted on {formatDate(booking.createdAt)}
+                      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-xs text-slate-400">
+                          Submitted on {formatDate(booking.createdAt)}
+                        </span>
+                        {booking.status === 'completed' && (
+                          reviewedBookings[booking._id] ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold rounded-xl">
+                              ✓ Reviewed
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => { setReviewBookingId(booking._id); setReviewModalOpen(true); }}
+                              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition-colors"
+                            >
+                              ⭐ Rate Provider
+                            </button>
+                          )
+                        )}
                       </div>
                     </div>
                   ))}
@@ -262,6 +275,18 @@ const MyRequests = () => {
           </>
         )}
       </div>
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => { setReviewModalOpen(false); setReviewBookingId(null); }}
+        bookingId={reviewBookingId}
+        reviewerType="homeowner"
+        reviewerName={bookings.find(b => b._id === reviewBookingId)?.userName || submittedEmail}
+        onReviewSubmitted={() => {
+          setReviewedBookings(prev => ({ ...prev, [reviewBookingId]: true }));
+        }}
+      />
     </div>
   );
 };

@@ -252,24 +252,23 @@ router.get('/analytics/me', auth, async (req, res) => {
     let totalCompletedJobs = 0;
     let totalRevenue = 0;
     const monthlyEarnings = Array(12).fill(0);
-    const serviceDemand = {}; // Track demand by time/month
-
-    const price = provider.pricePerHour || 0;
+    const serviceDemand = {}; // Track demand by month
+    const dayDemand = {}; // Track demand by day of week
 
     bookings.forEach(booking => {
       const bookingDate = new Date(booking.date);
       const month = bookingDate.getMonth(); // 0-11
 
-      // Track Peak Demand (count all bookings, not just completed, or just completed?)
-      // Let's track all bookings for peak demand
       const monthName = bookingDate.toLocaleString('default', { month: 'short' });
       serviceDemand[monthName] = (serviceDemand[monthName] || 0) + 1;
+      
+      const dayName = bookingDate.toLocaleString('default', { weekday: 'long' });
+      dayDemand[dayName] = (dayDemand[dayName] || 0) + 1;
 
       if (booking.status === 'completed') {
         totalCompletedJobs += 1;
-        // Assume 1 job = 1 hour for revenue calculation
-        const earned = price * 1;
-        //const earned = booking.price ?? provider.pricePerHour ?? 0;
+        // Use the price stored on the booking (falls back to provider's current rate for old bookings)
+        const earned = booking.price || provider.pricePerHour || 0;
         totalRevenue += earned;
         if (!isNaN(month)) {
           monthlyEarnings[month] += earned;
@@ -283,8 +282,22 @@ router.get('/analytics/me', auth, async (req, res) => {
       bookings: serviceDemand[month]
     })).sort((a, b) => b.bookings - a.bookings); // Highest first
 
+    const peakDemandDays = Object.keys(dayDemand).map(day => ({
+      day,
+      bookings: dayDemand[day]
+    })).sort((a, b) => b.bookings - a.bookings);
+
     // 2. Fetch Reviews & Rating Trends
-    const reviews = await Review.find({ providerId: provider._id });
+    const reviews = await Review.find({ providerId: provider._id, $or: [{ targetType: 'provider' }, { targetType: { $exists: false } }] });
+    const providerGivenReviewsRaw = await Review.find({ providerId: provider._id, targetType: 'homeowner' }).sort({ date: -1 });
+
+    const providerGivenReviews = providerGivenReviewsRaw.map(r => {
+      const matchingBooking = bookings.find(b => b._id.toString() === r.bookingId.toString());
+      return {
+        ...r.toObject(),
+        homeownerName: matchingBooking ? matchingBooking.userName : 'Homeowner'
+      };
+    });
 
     let averageRating = 0;
     const ratingTrends = []; // average rating per month
@@ -318,7 +331,9 @@ router.get('/analytics/me', auth, async (req, res) => {
       averageRating,
       totalReviews: reviews.length,
       peakDemand,
-      ratingTrends
+      peakDemandDays,
+      ratingTrends,
+      providerGivenReviews
     });
 
   } catch (error) {
@@ -626,10 +641,34 @@ router.get('/:id', async (req, res) => {
     }
 
     const reviews = await Review.find({
-      providerId: provider._id
+      providerId: provider._id,
+      $or: [
+        { targetType: 'provider' },
+        { targetType: { $exists: false } }
+      ]
     }).sort({
       date: -1
     });
+
+    let calculatedRating = provider.rating;
+    let reviewCount = reviews.length;
+
+    if (reviewCount > 0) {
+      const totalStars = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
+      calculatedRating = Math.round((totalStars / reviewCount) * 10) / 10;
+      
+      if (provider.rating !== calculatedRating || provider.reviewCount !== reviewCount) {
+        provider.rating = calculatedRating;
+        provider.reviewCount = reviewCount;
+        await provider.save();
+      }
+    } else {
+      if (provider.rating !== 0 || provider.reviewCount !== 0) {
+        provider.rating = 0;
+        provider.reviewCount = 0;
+        await provider.save();
+      }
+    }
 
     res.json({
       provider,
