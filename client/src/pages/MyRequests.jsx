@@ -1,5 +1,4 @@
 
-import axios from "axios";
 
 import CancelConfirmModal from "../components/CancelModal";
 import React, { useState, useCallback, useEffect, useContext } from 'react';
@@ -166,7 +165,7 @@ const MyRequests = () => {
             .patch(`${API_URL}/api/bookings/notifications/read`, {
               email: email.trim().toLowerCase(),
             })
-            .catch(() => {});
+            .catch(() => { });
         }
       } catch (err) {
         console.error(err);
@@ -285,21 +284,19 @@ const MyRequests = () => {
             <div className="flex gap-4 border-b border-slate-200 mb-6">
               <button
                 onClick={() => setActiveView("requests")}
-                className={`pb-3 text-sm font-semibold transition-colors ${
-                  activeView === "requests"
+                className={`pb-3 text-sm font-semibold transition-colors ${activeView === "requests"
                     ? "border-b-2 border-primary-600 text-primary-700"
                     : "text-slate-500 hover:text-slate-700"
-                }`}
+                  }`}
               >
                 Requests ({bookings.length})
               </button>
               <button
                 onClick={() => setActiveView("notifications")}
-                className={`pb-3 text-sm font-semibold transition-colors flex items-center gap-2 ${
-                  activeView === "notifications"
+                className={`pb-3 text-sm font-semibold transition-colors flex items-center gap-2 ${activeView === "notifications"
                     ? "border-b-2 border-primary-600 text-primary-700"
                     : "text-slate-500 hover:text-slate-700"
-                }`}
+                  }`}
               >
                 Notifications
                 {unreadCount > 0 && (
@@ -386,13 +383,12 @@ const MyRequests = () => {
 
                       {cancelFeedback[booking._id] && (
                         <div
-                          className={`mt-3 p-3 rounded-lg text-sm ${
-                            cancelFeedback[booking._id].feeWaived
+                          className={`mt-3 p-3 rounded-lg text-sm ${cancelFeedback[booking._id].feeWaived
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                               : cancelFeedback[booking._id].feeCharged > 0
                                 ? "bg-amber-50 text-amber-700 border border-amber-200"
                                 : "bg-slate-50 text-slate-600 border border-slate-200"
-                          }`}
+                            }`}
                         >
                           {cancelFeedback[booking._id].message}
                         </div>
@@ -460,11 +456,10 @@ const MyRequests = () => {
                     return (
                       <div
                         key={notif._id}
-                        className={`bg-white rounded-2xl border p-5 flex gap-4 items-start transition-all ${
-                          notif.isRead
+                        className={`bg-white rounded-2xl border p-5 flex gap-4 items-start transition-all ${notif.isRead
                             ? "border-slate-200 opacity-80"
                             : "border-primary-200 shadow-sm ring-1 ring-primary-100"
-                        }`}
+                          }`}
                       >
                         <div
                           className={`text-2xl flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full border ${cfg.color}`}

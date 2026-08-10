@@ -7,7 +7,6 @@ const BOOKING_AMOUNT = 200; // ৳
 const PREMIUM_DISCOUNT = 0.05; // 5%
 
 const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
-  const { user } = useContext(AuthContext);
   const isPremium = user?.role === 'premium_user';
   const discountedAmount = BOOKING_AMOUNT - BOOKING_AMOUNT * PREMIUM_DISCOUNT;
 
@@ -27,7 +26,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
   useEffect(() => {
     if (isOpen) {
       const today = new Date();
-      const next7DaysArr = Array.from({length: 7}, (_, i) => {
+      const next7DaysArr = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(today);
         d.setDate(today.getDate() + i + 1);
         return {
@@ -41,13 +40,13 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
         const matchingDay = next7DaysArr.find(d => d.dayName === initialSlot.day);
         if (matchingDay) initialDate = matchingDay.date;
       }
-      
+
       setFormData({
-        userName: user?.name || '', 
-        userEmail: user?.email || '', 
-        userAddress: '', 
-        description: '', 
-        date: initialDate, 
+        userName: user?.name || '',
+        userEmail: user?.email || '',
+        userAddress: '',
+        description: '',
+        date: initialDate,
         time: initialSlot?.time || '',
         isEmergency: false
       });
@@ -70,7 +69,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     e.preventDefault();
     setStatus('submitting');
     setErrorMessage('');
-    
+
     try {
       await axios.post('http://localhost:5001/api/bookings', {
         ...formData,
@@ -96,8 +95,8 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
 
   // Get available dates (next 7 days)
   const today = new Date();
-  const l = (isPremium ? 8:7);
-  const next7Days = Array.from({length: l}, (_, i) => {
+  const l = (isPremium ? 8 : 7);
+  const next7Days = Array.from({ length: l }, (_, i) => {
     const d = new Date(today);
     const offset = isPremium ? 0 : 1; // Premium users can book for today
     d.setDate(today.getDate() + i + offset);
@@ -116,7 +115,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     return /@gmail\.com$|@yahoo\.com$/i.test(email);
   };
 
-  const isFormValid = 
+  const isFormValid =
     formData.userName.trim() !== '' &&
     formData.userEmail.trim() !== '' &&
     isValidEmail(formData.userEmail) &&
@@ -171,11 +170,10 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
                 <button
                   type="button"
                   onClick={toggleEmergency}
-                  className={`w-full rounded-xl p-4 flex items-center justify-between border transition-colors ${
-                    formData.isEmergency
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
-                  }`}
+                  className={`w-full rounded-xl p-4 flex items-center justify-between border transition-colors ${formData.isEmergency
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                    }`}
                 >
                   <div className="flex items-center gap-2 text-left">
                     <Zap className={`w-4 h-4 ${formData.isEmergency ? 'text-red-600' : 'text-slate-400'}`} />
@@ -185,14 +183,12 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
                     </div>
                   </div>
                   <span
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                      formData.isEmergency ? 'bg-red-600' : 'bg-slate-300'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${formData.isEmergency ? 'bg-red-600' : 'bg-slate-300'
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        formData.isEmergency ? 'translate-x-6' : 'translate-x-1'
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.isEmergency ? 'translate-x-6' : 'translate-x-1'
+                        }`}
                     />
                   </span>
                 </button>
@@ -224,7 +220,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Calendar className="w-4 h-4"/> Date</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Calendar className="w-4 h-4" /> Date</label>
                   <select required name="date" value={formData.date} onChange={handleChange} className="w-full rounded-lg border-slate-300 border p-2.5 text-sm focus:ring-primary-500 focus:border-primary-500">
                     <option value="">Select a date</option>
                     {next7Days.map(d => (
@@ -233,7 +229,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Clock className="w-4 h-4"/> Time Slot</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Clock className="w-4 h-4" /> Time Slot</label>
                   <select required name="time" value={formData.time} onChange={handleChange} disabled={!formData.date || availableSlots.length === 0} className="w-full rounded-lg border-slate-300 border p-2.5 text-sm focus:ring-primary-500 focus:border-primary-500 disabled:bg-slate-100 disabled:text-slate-400">
                     <option value="">{availableSlots.length > 0 ? 'Select a time' : 'No slots available'}</option>
                     {availableSlots.map(slot => (
@@ -247,8 +243,8 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
                 <div className="text-red-500 text-sm">{errorMessage}</div>
               )}
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={!isFormValid || status === 'submitting'}
                 className={buttonClass}
               >
