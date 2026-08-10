@@ -19,6 +19,20 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const pendingCount = providers.filter((provider) => provider.verificationStatus === 'pending').length;
+  const activeHomeowners = users.filter((entry) => entry.role === 'user' && entry.accountStatus !== 'deleted');
+  const activeProviders = users.filter((entry) => entry.role === 'provider' && entry.accountStatus !== 'deleted');
+  const deletedCount = users.filter((entry) => entry.accountStatus === 'deleted').length;
+
+  const getStatusBadge = (status) => {
+    const normalized = (status || 'active').toLowerCase();
+    if (normalized === 'deleted') {
+      return 'rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-700';
+    }
+    if (normalized === 'pending') {
+      return 'rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700';
+    }
+    return 'rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700';
+  };
 
   const fetchAdminData = async () => {
     try {
@@ -87,14 +101,17 @@ const AdminDashboard = () => {
 
   const handleDeactivate = async (providerId) => {
     try {
-      const res = await axios.delete(`http://localhost:5001/api/providers/admin/${providerId}/account`, {
+      const res = await axios.post(`http://localhost:5001/api/providers/admin/${providerId}/account`, {
+        reason: reasonDrafts[providerId] || 'Provider account deactivated by administrator.'
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage(res.data.message || 'Account deactivated');
       setProviders((prev) => prev.filter((item) => item._id !== providerId));
-      fetchAdminData();
+      await fetchAdminData();
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Unable to deactivate account');
+      console.error('Error deactivating provider account:', error);
+      setMessage(error.response?.data?.message || 'Unable to deactivate this account right now.');
     }
   };
 
@@ -275,18 +292,21 @@ const AdminDashboard = () => {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-bold text-slate-900">Users</h2>
               <div className="flex gap-2">
-                <button onClick={() => setUsersTab('homeowners')} className={`rounded-full px-3 py-2 text-sm font-semibold ${usersTab === 'homeowners' ? 'bg-primary-600 text-white' : 'border border-slate-200 bg-white text-slate-700'}`}>Home Owners ({users.filter((entry) => entry.role === 'user').length})</button>
-                <button onClick={() => setUsersTab('providers')} className={`rounded-full px-3 py-2 text-sm font-semibold ${usersTab === 'providers' ? 'bg-primary-600 text-white' : 'border border-slate-200 bg-white text-slate-700'}`}>Service Providers ({users.filter((entry) => entry.role === 'provider').length})</button>
+                <button onClick={() => setUsersTab('homeowners')} className={`rounded-full px-3 py-2 text-sm font-semibold ${usersTab === 'homeowners' ? 'bg-primary-600 text-white' : 'border border-slate-200 bg-white text-slate-700'}`}>Home Owners ({activeHomeowners.length})</button>
+                <button onClick={() => setUsersTab('providers')} className={`rounded-full px-3 py-2 text-sm font-semibold ${usersTab === 'providers' ? 'bg-primary-600 text-white' : 'border border-slate-200 bg-white text-slate-700'}`}>Service Providers ({activeProviders.length})</button>
               </div>
             </div>
+            {deletedCount > 0 ? <p className="mt-2 text-sm text-slate-500">Deleted accounts are hidden from the active lists and shown only in the details view.</p> : null}
             <div className="mt-4 space-y-3">
-              {(usersTab === 'homeowners' ? users.filter((entry) => entry.role === 'user') : users.filter((entry) => entry.role === 'provider')).map((entry) => (
-                <button key={entry._id} onClick={() => setSelectedUser(entry)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left">
+              {(usersTab === 'homeowners' ? activeHomeowners : activeProviders).length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">No active {usersTab === 'homeowners' ? 'homeowners' : 'service providers'} found.</div>
+              ) : (usersTab === 'homeowners' ? activeHomeowners : activeProviders).map((entry) => (
+                <button key={entry._id} onClick={() => setSelectedUser(entry)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left transition hover:border-primary-300 hover:shadow-sm">
                   <div>
                     <div className="font-semibold text-slate-800">{entry.name}</div>
                     <div className="text-sm text-slate-600">{entry.email}</div>
                   </div>
-                  <div className="text-sm text-slate-500">{entry.accountStatus || 'active'}</div>
+                  <span className={getStatusBadge(entry.accountStatus)}>{(entry.accountStatus || 'active').toUpperCase()}</span>
                 </button>
               ))}
             </div>

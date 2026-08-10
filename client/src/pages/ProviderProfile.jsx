@@ -175,13 +175,23 @@ const ProviderProfile = () => {
             <div className="mt-6 md:mt-0 space-y-3">
               {user?.role === 'admin' && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <div className="text-sm font-semibold text-slate-800">Admin review</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <button onClick={handleAdminVerify} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Approve / Verify</button>
-                    <button onClick={handleAdminReject} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white">Reject Verification</button>
+                  <div className="text-sm font-semibold text-slate-800">
+                    {provider.verificationStatus === 'verified' ? 'Verification status' : 'Admin review'}
                   </div>
-                  <textarea value={reviewReason} onChange={(e) => setReviewReason(e.target.value)} className="mt-3 w-full rounded-lg border border-slate-300 p-2 text-sm" rows="2" placeholder="Optional rejection reason" />
-                  {reviewMessage ? <div className="mt-2 text-sm text-slate-600">{reviewMessage}</div> : null}
+                  {provider.verificationStatus === 'verified' ? (
+                    <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+                      This provider is already verified and does not need approval.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button onClick={handleAdminVerify} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Approve / Verify</button>
+                        <button onClick={handleAdminReject} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white">Reject Verification</button>
+                      </div>
+                      <textarea value={reviewReason} onChange={(e) => setReviewReason(e.target.value)} className="mt-3 w-full rounded-lg border border-slate-300 p-2 text-sm" rows="2" placeholder="Optional rejection reason" />
+                      {reviewMessage ? <div className="mt-2 text-sm text-slate-600">{reviewMessage}</div> : null}
+                    </>
+                  )}
                 </div>
               )}
               <div className="flex flex-wrap gap-3">

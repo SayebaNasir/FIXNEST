@@ -125,9 +125,18 @@ const SearchPage = () => {
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Find Professionals Near You</h1>
-          <p className="mt-2 text-lg text-slate-600">Discover top-rated home service providers in your area.</p>
+        <header className="mb-8 rounded-3xl border border-slate-200 bg-gradient-to-r from-primary-600 via-sky-600 to-teal-500 p-6 text-white shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-white/80">Trusted local help</p>
+              <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Find professionals near you in minutes</h1>
+              <p className="mt-3 text-lg text-white/90">Discover verified home-service experts, compare rates, and book with confidence from one polished experience.</p>
+            </div>
+            <div className="rounded-2xl border border-white/20 bg-white/15 px-4 py-3 backdrop-blur-sm">
+              <div className="text-sm font-semibold">Fast and reliable</div>
+              <div className="text-sm text-white/80">Verified providers • Easy booking • Flexible scheduling</div>
+            </div>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

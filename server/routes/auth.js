@@ -100,7 +100,7 @@ router.get('/admin/users', auth, async (req, res) => {
   }
 });
 
-router.post('/admin/users/:id/deactivate', auth, async (req, res) => {
+const deactivateUserAccount = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only admins can deactivate users' });
@@ -111,7 +111,11 @@ router.post('/admin/users/:id/deactivate', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const reason = req.body.reason || 'No reason provided.';
+    if (user.accountStatus === 'deleted') {
+      return res.status(409).json({ message: 'This account has already been deleted.' });
+    }
+
+    const reason = req.body?.reason || req.query?.reason || 'No reason provided.';
 
     user.accountStatus = 'deleted';
     user.deletedAt = new Date();
@@ -138,7 +142,10 @@ router.post('/admin/users/:id/deactivate', auth, async (req, res) => {
     console.error('Error deactivating user:', error);
     res.status(500).json({ message: 'Server error deactivating user' });
   }
-});
+};
+
+router.post('/admin/users/:id/deactivate', auth, deactivateUserAccount);
+router.delete('/admin/users/:id/deactivate', auth, deactivateUserAccount);
 
 router.get('/favorites', auth, async (req, res) => {
   try {
