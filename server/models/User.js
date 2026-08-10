@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema({
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   deletionReason: { type: String, default: '' },
   favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Provider', default: [] }],
+  rating: { type: Number, default: 0 },
+  reviewCount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 
