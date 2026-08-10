@@ -51,7 +51,12 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Provider is not available at the selected time.' });
     }
 
-    const existingBooking = await Booking.findOne({ providerId, date, time: requestedSlot });
+    const existingBooking = await Booking.findOne({
+      providerId,
+      date,
+      time: requestedSlot,
+      status: { $in: ['pending', 'accepted', 'in-progress'] }
+    });
     if (existingBooking) {
       return res.status(409).json({ message: 'This time slot is already booked.' });
     }
@@ -65,6 +70,7 @@ router.post('/', auth, async (req, res) => {
 
     const newBooking = new Booking({
       providerId,
+      userId: req.user.id,
       userName,
       userEmail: userEmail.toLowerCase(),
       userAddress,
@@ -104,16 +110,11 @@ router.post('/', auth, async (req, res) => {
 });
 
 // -----------------------------------------------
-// GET /my — Homeowner tracks their requests by email
+// GET /my — Homeowner tracks their requests by userId
 // -----------------------------------------------
-router.get('/my', async (req, res) => {
+router.get('/my', auth, async (req, res) => {
   try {
-    const { email } = req.query;
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
-    }
-
-    const bookings = await Booking.find({ userEmail: email.toLowerCase() })
+    const bookings = await Booking.find({ userId: req.user.id })
       .populate('providerId', 'name serviceType')
       .sort({ createdAt: -1 });
 
@@ -127,14 +128,9 @@ router.get('/my', async (req, res) => {
 // -----------------------------------------------
 // GET /notifications — Homeowner fetches notifications
 // -----------------------------------------------
-router.get('/notifications', async (req, res) => {
+router.get('/notifications', auth, async (req, res) => {
   try {
-    const { email } = req.query;
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
-    }
-
-    const notifications = await BookingNotification.find({ userEmail: email.toLowerCase() })
+    const notifications = await BookingNotification.find({ userId: req.user.id })
       .sort({ createdAt: -1 })
       .limit(50);
 
@@ -148,13 +144,10 @@ router.get('/notifications', async (req, res) => {
 // -----------------------------------------------
 // PATCH /notifications/read — Mark notifications read
 // -----------------------------------------------
-router.patch('/notifications/read', async (req, res) => {
+router.patch('/notifications/read', auth, async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email is required' });
-
     await BookingNotification.updateMany(
-      { userEmail: email.toLowerCase(), isRead: false },
+      { userId: req.user.id, isRead: false },
       { $set: { isRead: true } }
     );
 
@@ -229,6 +222,7 @@ router.patch('/:id/status', auth, async (req, res) => {
     const msgFn = STATUS_MESSAGES[status];
     if (msgFn) {
       await BookingNotification.create({
+        userId: booking.userId,
         userEmail: booking.userEmail,
         bookingId: booking._id,
         providerName: provider.name,
