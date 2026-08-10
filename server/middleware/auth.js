@@ -20,7 +20,11 @@ const auth = async (req, res, next) => {
     }
 
     if (user.accountStatus === 'deleted') {
-      return res.status(403).json({ message: 'This account has been deleted by an administrator.' });
+      return res.status(403).json({
+        message: 'Your account has been deleted by an administrator.',
+        deletionReason: user.deletionReason || 'No reason provided.',
+        accountStatus: user.accountStatus
+      });
     }
 
     req.user = {

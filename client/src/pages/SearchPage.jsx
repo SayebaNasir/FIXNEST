@@ -8,8 +8,9 @@ import BookingModal from '../components/BookingModal';
 import { AuthContext } from '../context/AuthContext';
 
 const SearchPage = () => {
-  const { user, setIsLoginModalOpen } = useContext(AuthContext);
+  const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
   const [providers, setProviders] = useState([]);
+  const [favoriteProviderIds, setFavoriteProviderIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,7 +52,9 @@ const SearchPage = () => {
       if (f.rating) url += `&rating=${f.rating}`;
       if (f.maxPrice) url += `&maxPrice=${f.maxPrice}`;
 
-      const res = await axios.get(url);
+      const res = await axios.get(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       setProviders(res.data);
     } catch (error) {
       console.error('Error fetching providers:', error);
@@ -64,6 +67,51 @@ const SearchPage = () => {
   useEffect(() => {
     fetchProviders(filters, userLocation);
   }, [filters, userLocation]);
+
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!user || !token) {
+        setFavoriteProviderIds([]);
+        return;
+      }
+
+      try {
+        const res = await axios.get('http://localhost:5001/api/auth/favorites', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFavoriteProviderIds((res.data || []).map((provider) => provider._id));
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+      }
+    };
+
+    fetchFavorites();
+  }, [user, token]);
+
+  const handleFavoriteToggle = async (provider) => {
+    if (!user) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    const isFavorite = favoriteProviderIds.includes(provider._id);
+
+    try {
+      if (isFavorite) {
+        await axios.delete(`http://localhost:5001/api/auth/favorites/${provider._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFavoriteProviderIds((prev) => prev.filter((id) => id !== provider._id));
+      } else {
+        await axios.post(`http://localhost:5001/api/auth/favorites/${provider._id}`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFavoriteProviderIds((prev) => [...prev, provider._id]);
+      }
+    } catch (error) {
+      console.error('Error updating favorite:', error);
+    }
+  };
 
   const handleBookNow = (provider) => {
     if (!user) {
@@ -120,6 +168,8 @@ const SearchPage = () => {
                       key={provider._id}
                       provider={provider}
                       onBookNow={handleBookNow}
+                      onToggleFavorite={handleFavoriteToggle}
+                      isFavorite={favoriteProviderIds.includes(provider._id)}
                     />
                   ))}
                 </div>
