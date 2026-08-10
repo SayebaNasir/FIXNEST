@@ -14,7 +14,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
   });
   const [status, setStatus] = useState('idle'); // idle, submitting, success, error
   const [errorMessage, setErrorMessage] = useState('');
-  const { token } = useContext(AuthContext);
+  const { token, user } = useContext(AuthContext);
 
   useEffect(() => {
     if (isOpen) {
@@ -35,7 +35,10 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
       }
       
       setFormData({
-        userName: '', userEmail: '', userAddress: '', description: '', 
+        userName: user?.name || '', 
+        userEmail: user?.email || '', 
+        userAddress: '', 
+        description: '', 
         date: initialDate, 
         time: initialSlot?.time || ''
       });

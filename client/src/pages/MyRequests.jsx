@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useContext } from 'react';
 import axios from 'axios';
 import ReviewModal from '../components/ReviewModal';
+import { AuthContext } from '../context/AuthContext';
 
 const API_URL = 'http://localhost:5001';
 
@@ -26,37 +27,32 @@ const formatDate = (dateStr) =>
   new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 const MyRequests = () => {
-  const [email, setEmail] = useState('');
-  const [submittedEmail, setSubmittedEmail] = useState('');
+  const { user, token } = useContext(AuthContext);
   const [bookings, setBookings] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [activeView, setActiveView] = useState('requests'); // 'requests' | 'notifications'
-  const [searched, setSearched] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedHistory, setExpandedHistory] = useState(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewBookingId, setReviewBookingId] = useState(null);
   const [reviewedBookings, setReviewedBookings] = useState({});
 
-  const handleSearch = useCallback(async (e) => {
-    e.preventDefault();
-    if (!email.trim()) return;
+  const fetchRequests = useCallback(async () => {
+    if (!user || !token) return;
 
     setLoading(true);
     setError('');
-    setBookings([]);
-    setNotifications([]);
+
+    const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
     try {
       const [bookingsRes, notifRes] = await Promise.all([
-        axios.get(`${API_URL}/api/bookings/my`, { params: { email: email.trim().toLowerCase() } }),
-        axios.get(`${API_URL}/api/bookings/notifications`, { params: { email: email.trim().toLowerCase() } })
+        axios.get(`${API_URL}/api/bookings/my`, authHeaders),
+        axios.get(`${API_URL}/api/bookings/notifications`, authHeaders)
       ]);
       setBookings(bookingsRes.data);
       setNotifications(notifRes.data);
-      setSubmittedEmail(email.trim().toLowerCase());
-      setSearched(true);
 
       // Check which completed bookings are already reviewed by homeowner
       const completed = bookingsRes.data.filter(b => b.status === 'completed');
@@ -77,7 +73,7 @@ const MyRequests = () => {
 
       // Mark all notifications as read
       if (notifRes.data.length > 0) {
-        axios.patch(`${API_URL}/api/bookings/notifications/read`, { email: email.trim().toLowerCase() }).catch(() => {});
+        axios.patch(`${API_URL}/api/bookings/notifications/read`, {}, authHeaders).catch(() => {});
       }
     } catch (err) {
       console.error(err);
@@ -85,7 +81,11 @@ const MyRequests = () => {
     } finally {
       setLoading(false);
     }
-  }, [email]);
+  }, [user, token]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -97,31 +97,9 @@ const MyRequests = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-extrabold text-slate-900">My Service Requests</h1>
           <p className="mt-2 text-slate-500">
-            Enter the email you used when booking to track your request status and view notifications.
+            Track your request status and view notifications.
           </p>
         </div>
-
-        {/* Search Form */}
-        <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-          <label className="block text-sm font-bold text-slate-700 mb-2">Your Email Address</label>
-          <div className="flex gap-3">
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 rounded-xl border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="e.g. saba@gmail.com"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-bold rounded-xl transition-colors text-sm"
-            >
-              {loading ? 'Searching...' : 'Search'}
-            </button>
-          </div>
-        </form>
 
         {/* Error */}
         {error && (
@@ -130,8 +108,15 @@ const MyRequests = () => {
           </div>
         )}
 
+        {loading && (
+          <div className="text-center py-16 text-slate-500">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p>Loading your requests...</p>
+          </div>
+        )}
+
         {/* Results */}
-        {searched && !loading && (
+        {!loading && (
           <>
             {/* Tab Switcher */}
             <div className="flex gap-4 border-b border-slate-200 mb-6">
@@ -167,8 +152,8 @@ const MyRequests = () => {
               bookings.length === 0 ? (
                 <div className="text-center py-16 text-slate-400">
                   <div className="text-5xl mb-4">📭</div>
-                  <p className="font-semibold text-lg">No requests found for this email.</p>
-                  <p className="text-sm mt-1">Double-check the email you used when booking.</p>
+                  <p className="font-semibold text-lg">No requests found.</p>
+                  <p className="text-sm mt-1">You haven't made any bookings yet.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -282,7 +267,7 @@ const MyRequests = () => {
         onClose={() => { setReviewModalOpen(false); setReviewBookingId(null); }}
         bookingId={reviewBookingId}
         reviewerType="homeowner"
-        reviewerName={bookings.find(b => b._id === reviewBookingId)?.userName || submittedEmail}
+        reviewerName={bookings.find(b => b._id === reviewBookingId)?.userName || user?.name || ''}
         onReviewSubmitted={() => {
           setReviewedBookings(prev => ({ ...prev, [reviewBookingId]: true }));
         }}

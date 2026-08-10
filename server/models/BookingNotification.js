@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 // Notifications sent to homeowners about their booking status changes
 const bookingNotificationSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userEmail: { type: String, required: true, lowercase: true },
   bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true },
   providerName: { type: String, required: true },

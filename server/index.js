@@ -9,7 +9,7 @@ const authRoutes = require('./routes/auth');
 const geocodeRoutes = require('./routes/geocode');
 const app = express();
 const PORT = process.env.PORT || 5001;
-const fallbackMongoURI = 'mongodb://127.0.0.1:27017/fixnest';
+const fallbackMongoURI = 'mongodb+srv://fixnestAdmin:123fixnest@cluster0.q7gvbmz.mongodb.net/fixnest?appName=Cluster0';
 
 // Middleware
 app.use(cors({

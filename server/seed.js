@@ -3,7 +3,7 @@ const Provider = require('./models/Provider');
 const Review = require('./models/Review');
 require('dotenv').config();
 
-const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/fixnest';
+const mongoURI = process.env.MONGO_URI || 'mongodb+srv://fixnestAdmin:123fixnest@cluster0.q7gvbmz.mongodb.net/fixnest?appName=Cluster0';
 
 const seedData = async () => {
   try {
