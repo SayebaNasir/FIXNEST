@@ -73,18 +73,16 @@ const NavBar = () => {
                   </Link>
                 )}
 
-                {user.role !== 'provider' && user.role !== 'admin' && (
-                  <Link 
-                    to="/my-requests" 
-                    className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                      isActive('/my-requests') 
-                        ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md shadow-pink-200' 
-                        : 'text-slate-600 hover:text-purple-600 hover:bg-purple-50/60'
-                    }`}
-                  >
-                    <ClipboardList className="w-4 h-4" /> My Bookings
-                  </Link>
-                )}
+                <Link 
+                  to="/my-requests" 
+                  className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    isActive('/my-requests') 
+                      ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md shadow-pink-200' 
+                      : 'text-slate-600 hover:text-purple-600 hover:bg-purple-50/60'
+                  }`}
+                >
+                  <ClipboardList className="w-4 h-4" /> My Bookings
+                </Link>
 
                 <Link 
                   to="/favorites" 

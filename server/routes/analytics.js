@@ -174,9 +174,24 @@ router.get('/offpeak-providers', async (req, res) => {
 
     const hourKey = extractSlotHour(time);
 
-    // 1. Fetch active providers matching optional serviceType
+    // 1. Fetch active providers matching optional serviceType (excluding logged-in provider if provider)
     const providerQuery = { verificationStatus: { $ne: 'rejected' } };
     if (serviceType) providerQuery.serviceType = serviceType;
+
+    const authHeader = req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        if (decoded?.id && decoded?.role === 'provider') {
+          providerQuery.userId = { $ne: decoded.id };
+        }
+      } catch (e) {
+        // Ignore invalid token
+      }
+    }
+
     const providers = await Provider.find(providerQuery).lean();
 
     // 2. Fetch existing bookings for this time slot (and date/day)

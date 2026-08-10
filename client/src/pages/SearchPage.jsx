@@ -56,7 +56,7 @@ const SearchPage = () => {
       const res = await axios.get(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      setProviders(res.data);
+      setProviders(res.data || []);
     } catch (error) {
       console.error('Error fetching providers:', error);
     } finally {
@@ -110,8 +110,12 @@ const SearchPage = () => {
         setFavoriteProviderIds((prev) => [...prev, provider._id]);
       }
     } catch (error) {
-      console.error('Error updating favorite:', error);
+      console.error('Error toggling favorite:', error);
     }
+  };
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
   };
 
   const handleBookNow = (provider) => {
@@ -122,6 +126,24 @@ const SearchPage = () => {
     setSelectedProvider(provider);
     setIsModalOpen(true);
   };
+
+  // Filter out the logged-in provider from search results & map so they cannot book themselves
+  const displayProviders = providers.filter(p => {
+    if (user?.role === 'provider') {
+      const currentUserId = user.id || user._id;
+      const providerUserId = p.userId?._id || p.userId;
+      if (currentUserId && providerUserId && String(providerUserId) === String(currentUserId)) {
+        return false;
+      }
+      if (user.email && p.email && p.email.toLowerCase() === user.email.toLowerCase()) {
+        return false;
+      }
+      if (user.name && p.name && p.name.toLowerCase() === user.name.toLowerCase()) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
@@ -140,7 +162,7 @@ const SearchPage = () => {
                 Find &amp; Book Local <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500">Experts in Minutes</span>
               </h1>
               <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-medium">
-                Connect with verified plumbers, electricians, cleaners &amp; technicians. Enjoy automated Gmail notifications &amp; <strong>10% OFF Off-Peak Deals</strong>!
+                Connect with verified plumbers, electricians, cleaners &amp; technicians. Enjoy automated notifications &amp; <strong>10% OFF Off-Peak Deals</strong>!
               </p>
             </div>
 
@@ -148,14 +170,14 @@ const SearchPage = () => {
             <div className="bg-white/90 border border-purple-200/80 rounded-3xl p-6 shadow-md flex flex-col justify-between gap-4 min-w-[280px]">
               <div>
                 <div className="flex items-center gap-2 text-purple-600 text-xs font-black uppercase tracking-wider">
-                  <Tag className="w-4 h-4" /> Off-Peak Savings
+                  <Tag className="w-4 h-4 text-pink-500" /> Off-Peak Savings
                 </div>
                 <div className="text-2xl font-black text-slate-900 mt-1 font-display">Book &amp; Save 10%</div>
-                <p className="text-xs text-slate-500 mt-1">Low demand time slots automatically qualify for 10% off rate.</p>
+                <p className="text-xs text-slate-500 mt-1 font-medium">Low demand time slots automatically qualify for 10% off rate.</p>
               </div>
               <Link 
                 to="/offpeak-heatmap" 
-                className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-extrabold py-2.5 rounded-2xl text-xs transition-all shadow-md shadow-pink-200 flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-extrabold py-3 rounded-2xl text-xs transition-all shadow-md shadow-pink-200 flex items-center justify-center gap-2"
               >
                 View Off-Peak Deals <ArrowRight className="w-4 h-4" />
               </Link>
@@ -170,7 +192,7 @@ const SearchPage = () => {
           <div className="lg:col-span-1">
             <SearchFilters
               filters={filters}
-              setFilters={setFilters}
+              onFilterChange={handleFilterChange}
             />
           </div>
 
@@ -186,7 +208,7 @@ const SearchPage = () => {
                 <span className="text-xs text-slate-400 font-semibold">Within {filters.radius} km radius</span>
               </div>
               <ProviderMap
-                providers={providers}
+                providers={displayProviders}
                 userLocation={userLocation}
                 radius={Number(filters.radius)}
               />
@@ -203,7 +225,7 @@ const SearchPage = () => {
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
-                      <span className="text-pink-600">{providers.length}</span> Verified Provider{providers.length !== 1 ? 's' : ''} Available
+                      <span className="text-pink-600">{displayProviders.length}</span> Verified Provider{displayProviders.length !== 1 ? 's' : ''} Available
                     </span>
                   )}
                 </h2>
@@ -214,7 +236,7 @@ const SearchPage = () => {
                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-pink-400 border-t-transparent mb-4"></div>
                   <p className="font-semibold text-sm text-slate-600">Finding best home service experts near you...</p>
                 </div>
-              ) : providers.length === 0 ? (
+              ) : displayProviders.length === 0 ? (
                 <div className="text-center py-16 bg-white/80 rounded-3xl border border-pink-100 p-8">
                   <Search className="w-12 h-12 text-pink-300 mx-auto mb-3" />
                   <p className="text-slate-800 font-extrabold text-lg">No providers found matching your criteria.</p>
@@ -222,7 +244,7 @@ const SearchPage = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {providers.map(provider => (
+                  {displayProviders.map(provider => (
                     <ProviderCard
                       key={provider._id}
                       provider={provider}

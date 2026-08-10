@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useContext } from 'react';
 import axios from 'axios';
 import ReviewModal from '../components/ReviewModal';
 import { AuthContext } from '../context/AuthContext';
-import { ClipboardList, Bell, Search, Clock, CheckCircle2, XCircle, Settings, Sparkles, Star, MapPin, Calendar } from 'lucide-react';
+import { ClipboardList, Bell, Clock, CheckCircle2, XCircle, Settings, Sparkles, Star, MapPin, Calendar } from 'lucide-react';
 
 const API_URL = 'http://localhost:5001';
 
@@ -30,24 +30,24 @@ const formatDate = (dateStr) =>
 
 const MyRequests = () => {
   const { user, token } = useContext(AuthContext);
-  const [email, setEmail] = useState('');
-  const [submittedEmail, setSubmittedEmail] = useState('');
   const [bookings, setBookings] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [activeView, setActiveView] = useState('requests'); // 'requests' | 'notifications'
-  const [searched, setSearched] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewBookingId, setReviewBookingId] = useState(null);
   const [reviewedBookings, setReviewedBookings] = useState({});
 
-  const fetchBookingsForEmail = useCallback(async (targetEmail) => {
-    if (!targetEmail) return;
+  const fetchUserBookings = useCallback(async () => {
+    if (!user?.email) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
 
-    const queryEmail = targetEmail.trim().toLowerCase();
+    const queryEmail = user.email.trim().toLowerCase();
     const authHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
     try {
@@ -55,13 +55,11 @@ const MyRequests = () => {
         axios.get(`${API_URL}/api/bookings/my`, { params: { email: queryEmail }, ...authHeaders }),
         axios.get(`${API_URL}/api/bookings/notifications`, { params: { email: queryEmail }, ...authHeaders })
       ]);
-      setBookings(bookingsRes.data);
-      setNotifications(notifRes.data);
-      setSubmittedEmail(queryEmail);
-      setSearched(true);
+      setBookings(bookingsRes.data || []);
+      setNotifications(notifRes.data || []);
 
       // Check which completed bookings are already reviewed by homeowner
-      const completed = bookingsRes.data.filter(b => b.status === 'completed');
+      const completed = (bookingsRes.data || []).filter(b => b.status === 'completed');
       const reviewChecks = await Promise.all(
         completed.map(async (b) => {
           try {
@@ -78,31 +76,20 @@ const MyRequests = () => {
       setReviewedBookings(prev => ({ ...prev, ...reviewMap }));
 
       // Mark all notifications as read
-      if (notifRes.data.length > 0) {
+      if ((notifRes.data || []).length > 0) {
         axios.patch(`${API_URL}/api/bookings/notifications/read`, { email: queryEmail }, authHeaders).catch(() => {});
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to fetch your requests. Please try again.');
+      setError('Failed to fetch your booking requests. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [user, token]);
 
-  // Auto-fetch if user is logged in
   useEffect(() => {
-    if (user?.email && !searched) {
-      setEmail(user.email);
-      fetchBookingsForEmail(user.email);
-    }
-  }, [user, fetchBookingsForEmail, searched]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (email.trim()) {
-      fetchBookingsForEmail(email);
-    }
-  };
+    fetchUserBookings();
+  }, [fetchUserBookings]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -113,44 +100,13 @@ const MyRequests = () => {
         {/* Header */}
         <div>
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-50 border border-pink-200 text-pink-600 text-xs font-black uppercase tracking-wider mb-3">
-            <ClipboardList className="w-4 h-4" /> Live Booking Tracker
+            <ClipboardList className="w-4 h-4" /> Live Booking History
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-display">My Service Requests</h1>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-display">My Bookings</h1>
           <p className="mt-2 text-slate-600 text-sm">
-            Track real-time job status, provider updates, and email notifications.
+            Track real-time job status, provider responses, and live updates.
           </p>
         </div>
-
-        {/* Search Form */}
-        <form onSubmit={handleSearch} className="bg-white/95 border border-pink-100 rounded-3xl p-6 shadow-sm backdrop-blur-md">
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-2">Account / Booking Email Address</label>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs text-slate-800 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              placeholder="e.g. sadiabintekamal.02@gmail.com"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-3.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 text-white font-extrabold rounded-2xl transition-all text-xs flex items-center justify-center gap-2 shadow-md shadow-pink-200 cursor-pointer"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Searching...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4" /> Track Bookings
-                </>
-              )}
-            </button>
-          </div>
-        </form>
 
         {/* Error */}
         {error && (
@@ -160,23 +116,28 @@ const MyRequests = () => {
         )}
 
         {/* Results */}
-        {searched && !loading && (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white/60 border border-pink-100 rounded-3xl text-slate-400">
+            <div className="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="font-extrabold text-sm text-slate-700">Loading your bookings...</p>
+          </div>
+        ) : (
           <div className="space-y-6">
             {/* Tab Switcher */}
             <div className="flex items-center gap-4 border-b border-pink-100 pb-3">
               <button
                 onClick={() => setActiveView('requests')}
-                className={`pb-2 text-xs font-black transition-all border-b-2 ${
+                className={`pb-2 text-xs font-black transition-all cursor-pointer border-b-2 ${
                   activeView === 'requests'
                     ? 'border-pink-500 text-pink-600'
                     : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
-                Requests ({bookings.length})
+                Bookings ({bookings.length})
               </button>
               <button
                 onClick={() => setActiveView('notifications')}
-                className={`pb-2 text-xs font-black transition-all flex items-center gap-2 border-b-2 ${
+                className={`pb-2 text-xs font-black transition-all flex items-center gap-2 cursor-pointer border-b-2 ${
                   activeView === 'notifications'
                     ? 'border-pink-500 text-pink-600'
                     : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -196,8 +157,8 @@ const MyRequests = () => {
               bookings.length === 0 ? (
                 <div className="text-center py-16 bg-white/80 border border-pink-100 rounded-3xl text-slate-400 space-y-2">
                   <div className="text-4xl">📭</div>
-                  <p className="font-extrabold text-base text-slate-800">No service requests found for this email.</p>
-                  <p className="text-xs text-slate-500">Make sure to enter the exact email used during booking.</p>
+                  <p className="font-extrabold text-base text-slate-800">No service requests found.</p>
+                  <p className="text-xs text-slate-500">Explore available providers on the home page and book a service anytime!</p>
                 </div>
               ) : (
                 <div className="space-y-5">
@@ -206,19 +167,17 @@ const MyRequests = () => {
                       key={booking._id}
                       className="bg-white/95 border border-pink-100 rounded-3xl p-6 shadow-sm transition-all hover:shadow-md hover:border-pink-200"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-lg text-slate-900 font-display">
-                              {booking.providerId?.name || 'Provider'}
-                            </h3>
-                            <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-black rounded-full uppercase">
-                              {booking.providerId?.serviceType || 'Service'}
-                            </span>
-                          </div>
-                          <span className="text-xs text-slate-500 font-medium">Booked for {booking.userName}</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-pink-100 pb-4">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h3 className="font-black text-xl text-slate-900 font-display">
+                            {booking.providerId?.name || 'Service Provider'}
+                          </h3>
+                          <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-black rounded-full uppercase">
+                            {booking.providerId?.serviceType || 'Service'}
+                          </span>
+                          <StatusBadge status={booking.status} />
                         </div>
-                        <StatusBadge status={booking.status} />
+                        <span className="text-xs text-slate-500 font-semibold">Booked by: {booking.userName}</span>
                       </div>
 
                       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -312,7 +271,7 @@ const MyRequests = () => {
         onClose={() => { setReviewModalOpen(false); setReviewBookingId(null); }}
         bookingId={reviewBookingId}
         reviewerType="homeowner"
-        reviewerName={bookings.find(b => b._id === reviewBookingId)?.userName || user?.name || submittedEmail}
+        reviewerName={user?.name || 'Customer'}
         onReviewSubmitted={() => {
           setReviewedBookings(prev => ({ ...prev, [reviewBookingId]: true }));
         }}

@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import ProviderCard from '../components/ProviderCard';
 import BookingModal from '../components/BookingModal';
+import { Heart, Compass } from 'lucide-react';
 
 const HomeOwnerDashboard = () => {
   const { user, token, loading: authLoading } = useContext(AuthContext);
@@ -55,24 +56,30 @@ const HomeOwnerDashboard = () => {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-pink-500 border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6 lg:px-8">
+    <div className="min-h-screen px-4 py-10 sm:px-6 lg:px-8 text-slate-800">
       <div className="max-w-7xl mx-auto space-y-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">Favorites</h1>
-          <p className="mt-2 text-slate-600">Save providers you trust and rebook them quickly whenever you need them.</p>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-50 border border-pink-200 text-pink-600 text-xs font-black uppercase tracking-wider mb-3">
+            <Heart className="w-4 h-4 text-pink-500" /> Saved Favorites
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-display">My Favorite Providers</h1>
+          <p className="mt-2 text-slate-600 text-sm">Save providers you trust and rebook them quickly whenever you need them.</p>
         </div>
 
         {favorites.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-            <h2 className="text-xl font-semibold text-slate-900">No favorite providers yet.</h2>
-            <p className="mt-2 text-slate-600">Save providers you trust to quickly book them again.</p>
-            <Link to="/" className="mt-6 inline-flex rounded-lg bg-primary-600 px-4 py-2 font-semibold text-white">Browse providers</Link>
+          <div className="rounded-3xl border border-pink-100 bg-white/90 p-12 text-center shadow-sm space-y-4">
+            <Heart className="w-12 h-12 text-pink-300 mx-auto" />
+            <h2 className="text-xl font-black text-slate-900 font-display">No favorite providers saved yet.</h2>
+            <p className="text-slate-500 text-sm max-w-sm mx-auto">Browse verified providers on the home page and click "Save" to keep them here.</p>
+            <Link to="/" className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 font-black text-white text-xs shadow-md shadow-pink-200">
+              <Compass className="w-4 h-4" /> Browse Providers
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
