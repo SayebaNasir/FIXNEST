@@ -1,25 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-primary-50:  #f0fdf4;
-  --color-primary-100: #dcfce7;
-  --color-primary-200: #bbf7d0;
-  --color-primary-300: #86efac;
-  --color-primary-400: #4ade80;
-  --color-primary-500: #22c55e;
-  --color-primary-600: #16a34a;
-  --color-primary-700: #15803d;
-  --color-primary-800: #166534;
-  --color-primary-900: #14532d;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+
+  /* Subtle Baby Pink & Light Purple Theme Palette */
+  --color-primary-50:  #fdf2f8;
+  --color-primary-100: #fce7f3;
+  --color-primary-200: #fbcfe8;
+  --color-primary-300: #f472b6;
+  --color-primary-400: #e879f9;
+  --color-primary-500: #d946ef;
+  --color-primary-600: #c026d3;
+  --color-primary-700: #a21caf;
+
+  --color-purple-light: #faf5ff;
+  --color-purple-border: #e9d5ff;
+  --color-purple-accent: #a855f7;
+
+  --color-pink-light: #fdf2f8;
+  --color-pink-border: #fbcfe8;
+  --color-pink-accent: #ec4899;
 }
 
 @layer base {
-  body {
-    @apply text-slate-900;
-    background-image: url('/back.jpg');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    scroll-behavior: smooth;
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', 'Inter', sans-serif;
+  }
+
+  body {
+    @apply text-slate-800 bg-slate-50/80 antialiased selection:bg-pink-300 selection:text-slate-900;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(251, 207, 232, 0.35) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(233, 213, 255, 0.35) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(244, 114, 182, 0.15) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+/* Glassmorphism & Custom Light Shadows */
+.glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(243, 232, 255, 0.9);
+  box-shadow: 0 10px 30px -10px rgba(236, 72, 153, 0.08);
+}
+
+.pink-purple-gradient {
+  background: linear-gradient(135deg, #fdf2f8 0%, #faf5ff 50%, #f5f3ff 100%);
+}
+
+.pink-purple-header {
+  background: linear-gradient(135deg, #fbcfe8 0%, #e9d5ff 100%);
+}
+
+.glow-pink-subtle {
+  box-shadow: 0 4px 20px -2px rgba(236, 72, 153, 0.15);
+}
+
+.glow-purple-subtle {
+  box-shadow: 0 4px 20px -2px rgba(168, 85, 247, 0.15);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #fdf2f8;
+}
+::-webkit-scrollbar-thumb {
+  background: #f472b6;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ec4899;
 }

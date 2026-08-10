@@ -7,6 +7,7 @@ const providerRoutes = require('./routes/providers');
 const bookingRoutes = require('./routes/bookings');
 const authRoutes = require('./routes/auth');
 const geocodeRoutes = require('./routes/geocode');
+const analyticsRoutes = require('./routes/analytics');
 const app = express();
 const PORT = process.env.PORT || 5001;
 const fallbackMongoURI = 'mongodb://127.0.0.1:27017/fixnest';
@@ -26,6 +27,7 @@ app.use('/api/providers', providerRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/geocode', geocodeRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Connect to MongoDB
 const tryConnectMongo = async () => {
