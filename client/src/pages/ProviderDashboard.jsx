@@ -581,47 +581,47 @@ const ProviderDashboard = () => {
             service areas and availability.
           </p>
 
-          <div className={`mt-4 rounded-2xl border p-4 ${formData.verificationStatus === 'verified' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : formData.verificationStatus === 'rejected' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
-            <div className="font-semibold">Verification status: {formData.verificationStatus === 'verified' ? 'Verified' : formData.verificationStatus === 'rejected' ? 'Rejected' : 'Pending review'}</div>
+          <div className={`mt-4 rounded-2xl border p-4 ${formData.verificationStatus === 'verified' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : formData.verificationStatus === 'rejected' ? 'border-pink-200 bg-pink-50 text-pink-700' : 'border-purple-200 bg-purple-50 text-purple-700'}`}>
+            <div className="font-bold">Verification Status: {formData.verificationStatus === 'verified' ? '✓ Verified' : formData.verificationStatus === 'rejected' ? '✕ Rejected' : '⏳ Pending Review'}</div>
             {formData.rejectionReason ? <div className="mt-1 text-sm">Reason: {formData.rejectionReason}</div> : null}
           </div>
 
           {/* Tabs */}
-          <div className="mt-6 flex space-x-4 border-b border-slate-200">
+          <div className="mt-6 flex space-x-4 border-b border-pink-100">
             <button
               onClick={() => setActiveTab('profile')}
-              className={`pb-3 font-semibold text-sm transition-colors ${
+              className={`pb-3 font-extrabold text-sm transition-all border-b-2 ${
                 activeTab === 'profile'
-                  ? 'border-b-2 border-primary-600 text-primary-700'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'border-pink-500 text-pink-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
               Profile Settings
             </button>
             <button
               onClick={() => setActiveTab('requests')}
-              className={`pb-3 font-semibold text-sm transition-colors relative flex items-center gap-2 ${
+              className={`pb-3 font-extrabold text-sm transition-all relative flex items-center gap-2 border-b-2 ${
                 activeTab === 'requests'
-                  ? 'border-b-2 border-primary-600 text-primary-700'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'border-pink-500 text-pink-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
               Service Requests
               {pendingCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-pink-500 text-white text-xs font-black rounded-full animate-pulse">
                   {pendingCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`pb-3 font-semibold text-sm transition-colors ${
+              className={`pb-3 font-extrabold text-sm transition-all border-b-2 ${
                 activeTab === 'analytics'
-                  ? 'border-b-2 border-primary-600 text-primary-700'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'border-pink-500 text-pink-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              Analytics & Insights
+              Analytics &amp; Insights
             </button>
           </div>
         </div>
@@ -1197,15 +1197,15 @@ const ProviderDashboard = () => {
                 const isUpdating = updatingBookingId === booking._id;
 
                 return (
-                  <div key={booking._id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex justify-between items-start gap-4 flex-wrap">
-                      <div>
-                        <p className="font-bold text-slate-900">{booking.userName}</p>
-                        <p className="text-sm text-slate-500">{booking.userEmail}</p>
+                  <div key={booking._id} className="bg-white/95 border border-pink-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex justify-between items-center gap-4 flex-wrap pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <p className="font-black text-slate-900 text-lg font-display">{booking.userName}</p>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black border ${cfg.color}`}>
+                          {cfg.label}
+                        </span>
                       </div>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${cfg.color}`}>
-                        {cfg.label}
-                      </span>
+                      <p className="text-xs text-slate-500 font-medium">{booking.userEmail}</p>
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
