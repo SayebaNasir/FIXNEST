@@ -21,6 +21,8 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     isEmergency: false
   });
   const [status, setStatus] = useState('idle'); // idle, submitting, success, error
+  const [errorMessage, setErrorMessage] = useState('');
+  const { token, user } = useContext(AuthContext);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,12 +43,16 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
       }
       
       setFormData({
-        userName: '', userEmail: '', userAddress: '', description: '', 
+        userName: user?.name || '', 
+        userEmail: user?.email || '', 
+        userAddress: '', 
+        description: '', 
         date: initialDate, 
         time: initialSlot?.time || '',
         isEmergency: false
       });
       setStatus('idle');
+      setErrorMessage('');
     }
   }, [isOpen, initialSlot]);
 
@@ -63,6 +69,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('submitting');
+    setErrorMessage('');
     
     try {
       await axios.post('http://localhost:5001/api/bookings', {
@@ -82,6 +89,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
       }, 2000);
     } catch (error) {
       console.error('Booking failed', error);
+      setErrorMessage(error.response?.data?.message || 'Failed to submit request. Please try again.');
       setStatus('error');
     }
   };
@@ -236,7 +244,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
               </div>
 
               {status === 'error' && (
-                <div className="text-red-500 text-sm">Failed to submit request. Please try again.</div>
+                <div className="text-red-500 text-sm">{errorMessage}</div>
               )}
 
               <button 

@@ -1,10 +1,11 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import SearchPage from './pages/SearchPage';
 import ProviderProfile from './pages/ProviderProfile';
 import ProviderDashboard from './pages/ProviderDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import HomeOwnerDashboard from './pages/HomeOwnerDashboard';
 import MyRequests from './pages/MyRequests';
 import LoginModal from './components/LoginModal';
 import MyBookings from './pages/MyBookings';
@@ -18,10 +19,10 @@ const NavBar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <a href="/" className="flex-shrink-0 flex items-center gap-2">
+            <Link to="/" className="flex-shrink-0 flex items-center gap-2">
               <img src="/logo.jpg" alt="FixNest Logo" className="w-8 h-8 rounded-lg object-cover" />
               <span className="font-bold text-xl tracking-tight text-slate-900">FixNest</span>
-            </a>
+            </Link>
           </div>
           <div className="flex items-center">
             {user ? (
@@ -31,19 +32,22 @@ const NavBar = () => {
                   <span className="text-xs text-slate-500 capitalize">{user.role}</span>
                 </div>
                 {user.role === 'provider' && (
-                  <a href="/dashboard" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                  <Link to="/dashboard" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                     Dashboard
-                  </a>
+                  </Link>
                 )}
+                <Link to="/favorites" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                  Favorites
+                </Link>
                 {user.role !== 'provider' && user.role !== 'admin' && (
-                  <a href="/my-requests" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                  <Link to="/my-requests" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                     My Requests
-                  </a>
+                  </Link>
                 )}
                 {user.role === 'admin' && (
-                  <a href="/admin" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                  <Link to="/admin" className="px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                     Admin
-                  </a>
+                  </Link>
                 )}
                 <button 
                   onClick={logout}
@@ -79,6 +83,7 @@ function App() {
             <Route path="/" element={<SearchPage />} />
             <Route path="/provider/:id" element={<ProviderProfile />} />
             <Route path="/dashboard" element={<ProviderDashboard />} />
+            <Route path="/favorites" element={<HomeOwnerDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/my-requests" element={<MyRequests />} />
             <Route path="/my-bookings" element={<MyBookings />} />

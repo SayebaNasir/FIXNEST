@@ -9,16 +9,31 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
+  const clearAuthState = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
+  };
+
   useEffect(() => {
-    // Check if user is logged in on mount
     const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    
-    if (storedUser && token) {
-  setUser(JSON.parse(storedUser));
-  setToken(token);
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-}
+    const storedToken = localStorage.getItem('token');
+
+    if (storedUser && storedToken) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setToken(storedToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+      } catch (error) {
+        clearAuthState();
+      }
+    } else {
+      clearAuthState();
+    }
+
     setLoading(false);
   }, []);
 
@@ -32,9 +47,13 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      return { success: true };
+      return { success: true, user: userData, role: userData.role };
     } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Login failed' };
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Login failed',
+        deletionReason: error.response?.data?.deletionReason || ''
+      };
     }
   };
 
@@ -48,19 +67,19 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      return { success: true };
+      return { success: true, user: userData, role: userData.role };
     } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Registration failed' };
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Registration failed',
+        deletionReason: error.response?.data?.deletionReason || ''
+      };
     }
   };
 
   const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
-    window.location.href = '/';
+    clearAuthState();
+    window.location.replace('/');
   };
 
   return (
@@ -70,6 +89,7 @@ export const AuthProvider = ({ children }) => {
   login,
   register,
   logout,
+  clearAuthState,
   loading,
   isLoginModalOpen,
   setIsLoginModalOpen

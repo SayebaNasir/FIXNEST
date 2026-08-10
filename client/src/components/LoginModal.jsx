@@ -1,12 +1,15 @@
 import React, { useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { X } from 'lucide-react';
 
 const LoginModal = () => {
+  const navigate = useNavigate();
   const { isLoginModalOpen, setIsLoginModalOpen, login, register } = useContext(AuthContext);
   const [isLoginView, setIsLoginView] = useState(true);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user' });
   const [error, setError] = useState('');
+  const [deletionReason, setDeletionReason] = useState('');
   const [status, setStatus] = useState('idle');
 
   if (!isLoginModalOpen) return null;
@@ -16,6 +19,7 @@ const LoginModal = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setDeletionReason('');
     setStatus('loading');
 
     let result;
@@ -28,8 +32,11 @@ const LoginModal = () => {
     if (result.success) {
       setIsLoginModalOpen(false);
       setFormData({ name: '', email: '', password: '', role: 'user' });
+
+      window.location.replace('/');
     } else {
       setError(result.message);
+      setDeletionReason(result.deletionReason || '');
     }
     setStatus('idle');
   };
@@ -45,7 +52,12 @@ const LoginModal = () => {
         </div>
 
         <div className="p-6">
-          {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div>{error}</div>
+              {deletionReason ? <div className="mt-2 font-medium">Reason: {deletionReason}</div> : null}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLoginView && (

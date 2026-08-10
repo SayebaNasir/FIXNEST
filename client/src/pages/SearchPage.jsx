@@ -8,8 +8,9 @@ import BookingModal from '../components/BookingModal';
 import { AuthContext } from '../context/AuthContext';
 
 const SearchPage = () => {
-  const { user, setIsLoginModalOpen } = useContext(AuthContext);
+  const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
   const [providers, setProviders] = useState([]);
+  const [favoriteProviderIds, setFavoriteProviderIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,7 +52,9 @@ const SearchPage = () => {
       if (f.rating) url += `&rating=${f.rating}`;
       if (f.maxPrice) url += `&maxPrice=${f.maxPrice}`;
 
-      const res = await axios.get(url);
+      const res = await axios.get(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       setProviders(res.data);
     } catch (error) {
       console.error('Error fetching providers:', error);
@@ -65,6 +68,51 @@ const SearchPage = () => {
     fetchProviders(filters, userLocation);
   }, [filters, userLocation]);
 
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!user || !token) {
+        setFavoriteProviderIds([]);
+        return;
+      }
+
+      try {
+        const res = await axios.get('http://localhost:5001/api/auth/favorites', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFavoriteProviderIds((res.data || []).map((provider) => provider._id));
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+      }
+    };
+
+    fetchFavorites();
+  }, [user, token]);
+
+  const handleFavoriteToggle = async (provider) => {
+    if (!user) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    const isFavorite = favoriteProviderIds.includes(provider._id);
+
+    try {
+      if (isFavorite) {
+        await axios.delete(`http://localhost:5001/api/auth/favorites/${provider._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFavoriteProviderIds((prev) => prev.filter((id) => id !== provider._id));
+      } else {
+        await axios.post(`http://localhost:5001/api/auth/favorites/${provider._id}`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFavoriteProviderIds((prev) => [...prev, provider._id]);
+      }
+    } catch (error) {
+      console.error('Error updating favorite:', error);
+    }
+  };
+
   const handleBookNow = (provider) => {
     if (!user) {
       setIsLoginModalOpen(true);
@@ -77,9 +125,18 @@ const SearchPage = () => {
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Find Professionals Near You</h1>
-          <p className="mt-2 text-lg text-slate-600">Discover top-rated home service providers in your area.</p>
+        <header className="mb-8 rounded-3xl border border-slate-200 bg-gradient-to-r from-primary-600 via-sky-600 to-teal-500 p-6 text-white shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-white/80">Trusted local help</p>
+              <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Find professionals near you in minutes</h1>
+              <p className="mt-3 text-lg text-white/90">Discover verified home-service experts, compare rates, and book with confidence from one polished experience.</p>
+            </div>
+            <div className="rounded-2xl border border-white/20 bg-white/15 px-4 py-3 backdrop-blur-sm">
+              <div className="text-sm font-semibold">Fast and reliable</div>
+              <div className="text-sm text-white/80">Verified providers • Easy booking • Flexible scheduling</div>
+            </div>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -120,6 +177,8 @@ const SearchPage = () => {
                       key={provider._id}
                       provider={provider}
                       onBookNow={handleBookNow}
+                      onToggleFavorite={handleFavoriteToggle}
+                      isFavorite={favoriteProviderIds.includes(provider._id)}
                     />
                   ))}
                 </div>

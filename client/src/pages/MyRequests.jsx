@@ -1,7 +1,11 @@
+
 import axios from "axios";
-import { useCallback, useState } from "react";
+
 import CancelConfirmModal from "../components/CancelModal";
-import ReviewModal from "../components/ReviewModal";
+import React, { useState, useCallback, useEffect, useContext } from 'react';
+import axios from 'axios';
+import ReviewModal from '../components/ReviewModal';
+import { AuthContext } from '../context/AuthContext';
 
 const API_URL = "http://localhost:5001";
 
@@ -267,8 +271,15 @@ const MyRequests = () => {
           </div>
         )}
 
+        {loading && (
+          <div className="text-center py-16 text-slate-500">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p>Loading your requests...</p>
+          </div>
+        )}
+
         {/* Results */}
-        {searched && !loading && (
+        {!loading && (
           <>
             {/* Tab Switcher */}
             <div className="flex gap-4 border-b border-slate-200 mb-6">
@@ -492,10 +503,7 @@ const MyRequests = () => {
         }}
         bookingId={reviewBookingId}
         reviewerType="homeowner"
-        reviewerName={
-          bookings.find((b) => b._id === reviewBookingId)?.userName ||
-          submittedEmail
-        }
+        reviewerName={bookings.find(b => b._id === reviewBookingId)?.userName || user?.name || ''}
         onReviewSubmitted={() => {
           setReviewedBookings((prev) => ({ ...prev, [reviewBookingId]: true }));
         }}

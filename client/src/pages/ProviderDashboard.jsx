@@ -1066,7 +1066,7 @@ const ProviderDashboard = () => {
               </div>
             ) : analyticsData ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-center items-center">
                     <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Total Revenue</h3>
                     <p className="text-3xl font-extrabold text-emerald-600">৳{analyticsData.totalRevenue}</p>
@@ -1074,11 +1074,6 @@ const ProviderDashboard = () => {
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-center items-center">
                     <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Completed Jobs</h3>
                     <p className="text-3xl font-extrabold text-blue-600">{analyticsData.totalCompletedJobs}</p>
-                  </div>
-                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-center items-center">
-                    <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Average Rating</h3>
-                    <p className="text-3xl font-extrabold text-amber-500">{analyticsData.averageRating} / 5.0</p>
-                    <p className="text-xs text-slate-400 mt-1">From {analyticsData.totalReviews} review(s)</p>
                   </div>
                 </div>
 

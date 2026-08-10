@@ -8,6 +8,7 @@ const statusHistorySchema = new mongoose.Schema({
 
 const bookingSchema = new mongoose.Schema({
   providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Provider', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userName: { type: String, required: true },
   userEmail: { type: String, required: true },
   isEmergency: { type: Boolean, default: false },
