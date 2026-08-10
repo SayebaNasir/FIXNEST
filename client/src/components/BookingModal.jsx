@@ -1,15 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { X, Calendar, Clock, Zap } from 'lucide-react';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
+
+const BOOKING_AMOUNT = 200; // ৳
+const PREMIUM_DISCOUNT = 0.05; // 5%
 
 const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
+  const { user } = useContext(AuthContext);
+  const isPremium = user?.role === 'premium_user';
+  const discountedAmount = BOOKING_AMOUNT - BOOKING_AMOUNT * PREMIUM_DISCOUNT;
+
   const [formData, setFormData] = useState({
     userName: '',
     userEmail: '',
     userAddress: '',
     description: '',
     date: '',
-    time: ''
+    time: '',
+    isEmergency: false
   });
   const [status, setStatus] = useState('idle'); // idle, submitting, success, error
 
@@ -34,7 +43,8 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
       setFormData({
         userName: '', userEmail: '', userAddress: '', description: '', 
         date: initialDate, 
-        time: initialSlot?.time || ''
+        time: initialSlot?.time || '',
+        isEmergency: false
       });
       setStatus('idle');
     }
@@ -46,6 +56,10 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const toggleEmergency = () => {
+    setFormData((prev) => ({ ...prev, isEmergency: !prev.isEmergency }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('submitting');
@@ -53,14 +67,17 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     try {
       await axios.post('http://localhost:5001/api/bookings', {
         ...formData,
-        providerId: provider._id
+        providerId: provider._id,
+        userId: user?._id,
+        amount: isPremium ? discountedAmount : BOOKING_AMOUNT,
+        isEmergency: isPremium ? formData.isEmergency : false
       });
       setStatus('success');
       setTimeout(() => {
         onClose();
         setStatus('idle');
         setFormData({
-          userName: '', userEmail: '', userAddress: '', description: '', date: '', time: ''
+          userName: '', userEmail: '', userAddress: '', description: '', date: '', time: '', isEmergency: false
         });
       }, 2000);
     } catch (error) {
@@ -71,9 +88,11 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
 
   // Get available dates (next 7 days)
   const today = new Date();
-  const next7Days = Array.from({length: 7}, (_, i) => {
+  const l = (isPremium ? 8:7);
+  const next7Days = Array.from({length: l}, (_, i) => {
     const d = new Date(today);
-    d.setDate(today.getDate() + i + 1);
+    const offset = isPremium ? 0 : 1; // Premium users can book for today
+    d.setDate(today.getDate() + i + offset);
     return {
       date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
       dayName: d.toLocaleDateString('en-US', { weekday: 'long' })
@@ -123,6 +142,54 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className={`rounded-xl p-4 flex items-center justify-between border ${isPremium ? 'bg-primary-50 border-primary-200' : 'bg-slate-50 border-slate-200'}`}>
+                <div>
+                  <p className={`text-sm font-bold ${isPremium ? 'text-primary-900' : 'text-slate-700'}`}>Booking Amount</p>
+                  {isPremium && (
+                    <p className="text-xs text-primary-700 mt-0.5">5% discount applied automatically</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  {isPremium && (
+                    <p className="text-xs text-slate-400 line-through">৳{BOOKING_AMOUNT}</p>
+                  )}
+                  <p className={`text-lg font-extrabold ${isPremium ? 'text-primary-900' : 'text-slate-900'}`}>
+                    ৳{isPremium ? discountedAmount.toFixed(2) : BOOKING_AMOUNT}
+                  </p>
+                </div>
+              </div>
+
+              {isPremium && (
+                <button
+                  type="button"
+                  onClick={toggleEmergency}
+                  className={`w-full rounded-xl p-4 flex items-center justify-between border transition-colors ${
+                    formData.isEmergency
+                      ? 'bg-red-50 border-red-200'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-left">
+                    <Zap className={`w-4 h-4 ${formData.isEmergency ? 'text-red-600' : 'text-slate-400'}`} />
+                    <div>
+                      <p className={`text-sm font-bold ${formData.isEmergency ? 'text-red-700' : 'text-slate-700'}`}>Emergency Request</p>
+                      <p className={`text-xs mt-0.5 ${formData.isEmergency ? 'text-red-500' : 'text-slate-400'}`}>Flag this as urgent for faster provider response</p>
+                    </div>
+                  </div>
+                  <span
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                      formData.isEmergency ? 'bg-red-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        formData.isEmergency ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </span>
+                </button>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Your Name</label>

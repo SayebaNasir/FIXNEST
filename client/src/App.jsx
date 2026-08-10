@@ -7,6 +7,7 @@ import ProviderDashboard from './pages/ProviderDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import MyRequests from './pages/MyRequests';
 import LoginModal from './components/LoginModal';
+import MyBookings from './pages/MyBookings';
 import { useContext } from 'react';
 
 const NavBar = () => {
@@ -80,6 +81,7 @@ function App() {
             <Route path="/dashboard" element={<ProviderDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/my-requests" element={<MyRequests />} />
+            <Route path="/my-bookings" element={<MyBookings />} />
           </Routes>
         </main>
         <LoginModal />

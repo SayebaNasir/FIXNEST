@@ -19,6 +19,141 @@ const STATUS_MESSAGES = {
   'in-progress': (name) => `Your job with ${name} is now in progress.`,
   completed:     (name) => `Your service with ${name} has been completed!`,
 };
+/*
+  Merge this route into your existing routes/bookings.js
+  (alongside your current POST '/' and any other booking routes).
+
+  Requires:
+  - const requireAuth = require('../middleware/auth');   // your existing auth middleware, sets req.user
+  - const User = require('../models/User');
+  - const Booking = require('../models/Booking');
+  - Schema fields from schema-additions.js added to User and Booking
+
+  Also requires BookingModal.jsx to send `userId: user?._id` when creating a
+  booking (see accompanying diff) so cancellation can verify ownership.
+*/
+/*
+  Merge this route into your existing routes/bookings.js, alongside the
+  routes MyRequests.jsx already calls (GET '/my', GET '/notifications', etc).
+
+  This replaces the earlier JWT-based version — MyRequests.jsx has no login,
+  bookings are looked up by email, so cancellation authorizes the same way:
+  the email in the request body must match booking.userEmail.
+
+  Requires:
+  - const Booking = require('../models/Booking');
+  - const User = require('../models/User');   // only used to check premium status by email
+  - Schema fields from schema-additions.js added to Booking (userId is now optional/unused here)
+  - User schema needs an email field you can look up by (adjust field name if it differs)
+*/
+
+const CANCELLATION_FEE = 50; // ৳ flat fee for late (<24h) cancellations
+const FREE_LATE_CANCELLATIONS_PER_MONTH = 3;
+
+// Turns a stored date ('YYYY-MM-DD') + time string (e.g. '10:00 AM') into a Date.
+function parseBookingDateTime(dateStr, timeStr) {
+  const match = String(timeStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  let hours = 0;
+  let minutes = 0;
+
+  if (match) {
+    hours = parseInt(match[1], 10);
+    minutes = parseInt(match[2], 10);
+    const meridiem = match[3];
+    if (meridiem) {
+      const isPM = meridiem.toUpperCase() === 'PM';
+      if (isPM && hours !== 12) hours += 12;
+      if (!isPM && hours === 12) hours = 0;
+    }
+  }
+
+  const [year, month, day] = String(dateStr).split('-').map(Number);
+  return new Date(year, month - 1, day, hours, minutes);
+}
+
+router.post('/:id/cancel', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'email is required' });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (String(booking.userEmail).toLowerCase() !== String(email).toLowerCase()) {
+      return res.status(403).json({ message: 'Not authorized to cancel this booking' });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ message: 'Booking is already cancelled' });
+    }
+    if (booking.status === 'completed') {
+      return res.status(400).json({ message: 'Completed bookings cannot be cancelled' });
+    }
+
+    const bookingDateTime = parseBookingDateTime(booking.date, booking.time);
+    const hoursUntilBooking = (bookingDateTime - new Date()) / (1000 * 60 * 60);
+    const isLateCancellation = hoursUntilBooking < 24;
+
+    let feeCharged = 0;
+    let feeWaived = false;
+    let remainingExemptions = null;
+
+    if (isLateCancellation) {
+      // No login here, so premium status is looked up by email.
+      // If no matching User account exists, treat as non-premium.
+      const account = await User.findOne({ email: String(email).toLowerCase() });
+      const isPremium = account?.role === 'premium_user';
+
+      if (isPremium) {
+        const currentMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+        if (account.premiumCancellationsMonth !== currentMonth) {
+          account.premiumCancellationsMonth = currentMonth;
+          account.premiumCancellationsUsed = 0;
+        }
+
+        if (account.premiumCancellationsUsed < FREE_LATE_CANCELLATIONS_PER_MONTH) {
+          account.premiumCancellationsUsed += 1;
+          feeWaived = true;
+          await account.save();
+        } else {
+          feeCharged = CANCELLATION_FEE;
+        }
+
+        remainingExemptions = Math.max(
+          0,
+          FREE_LATE_CANCELLATIONS_PER_MONTH - account.premiumCancellationsUsed
+        );
+      } else {
+        feeCharged = CANCELLATION_FEE;
+      }
+    }
+
+    booking.status = 'cancelled';
+    booking.cancelledAt = new Date();
+    booking.cancellationFee = feeCharged;
+    booking.feeWaived = feeWaived;
+    await booking.save();
+
+    let message;
+    if (!isLateCancellation) {
+      message = 'Booking cancelled. No fee — cancelled more than 24 hours in advance.';
+    } else if (feeWaived) {
+      message = `Booking cancelled. Late-cancellation fee waived (premium exemption used, ${remainingExemptions} left this month).`;
+    } else {
+      message = `Booking cancelled. A ৳${feeCharged} late-cancellation fee applies.`;
+    }
+
+    res.json({ message, booking, feeCharged, feeWaived, remainingExemptions });
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+    res.status(500).json({ message: 'Server error cancelling booking' });
+  }
+});
+
 
 // -----------------------------------------------
 // POST / — Homeowner creates a new booking request
