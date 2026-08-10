@@ -1,8 +1,10 @@
 import React, { useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { X } from 'lucide-react';
 
 const LoginModal = () => {
+  const navigate = useNavigate();
   const { isLoginModalOpen, setIsLoginModalOpen, login, register } = useContext(AuthContext);
   const [isLoginView, setIsLoginView] = useState(true);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user' });
@@ -30,6 +32,8 @@ const LoginModal = () => {
     if (result.success) {
       setIsLoginModalOpen(false);
       setFormData({ name: '', email: '', password: '', role: 'user' });
+
+      window.location.replace('/');
     } else {
       setError(result.message);
       setDeletionReason(result.deletionReason || '');
