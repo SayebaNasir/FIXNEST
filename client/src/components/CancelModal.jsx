@@ -1,8 +1,20 @@
 import React from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, Sparkles } from 'lucide-react';
 
-const CancelConfirmModal = ({ isOpen, onClose, onConfirm, booking, isLate, confirming }) => {
+const CancelConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  booking,
+  isLate,
+  confirming,
+  isPremium = false,
+}) => {
   if (!isOpen || !booking) return null;
+
+  // Premium users never pay the late-cancellation fee.
+  const feeWaived = isLate && isPremium;
+  const feeApplies = isLate && !isPremium;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
@@ -22,18 +34,31 @@ const CancelConfirmModal = ({ isOpen, onClose, onConfirm, booking, isLate, confi
             <span className="font-bold text-slate-900">{booking.time}</span>?
           </p>
 
-          {isLate ? (
+          {feeApplies && (
             <div className="mt-4 flex gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
               <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-amber-800">Within 24 hours</p>
                 <p className="text-xs text-amber-700 mt-1">
-                  A ৳50 late-cancellation fee applies. Premium members get this waived automatically
-                  if they have exemptions left this month.
+                  A ৳50 late-cancellation fee applies. Premium members get this waived automatically.
                 </p>
               </div>
             </div>
-          ) : (
+          )}
+
+          {feeWaived && (
+            <div className="mt-4 flex gap-3 p-4 rounded-xl bg-violet-50 border border-violet-200">
+              <Sparkles className="w-5 h-5 text-violet-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-violet-800">Premium fee waiver applied</p>
+                <p className="text-xs text-violet-700 mt-1">
+                  This is within 24 hours, but as a Premium member the ৳50 fee is waived.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!isLate && (
             <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
               <p className="text-sm text-emerald-700">
                 No fee — you're cancelling more than 24 hours in advance.

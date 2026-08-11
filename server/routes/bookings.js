@@ -4,6 +4,7 @@ const Booking = require('../models/Booking');
 const BookingNotification = require('../models/BookingNotification');
 const Provider = require('../models/Provider');
 const auth = require('../middleware/auth');
+const User = require('../models/User');
 
 const normalizeTimeSlot = (slot) => {
   if (typeof slot !== 'string') return '';
@@ -103,9 +104,14 @@ router.post('/:id/cancel', async (req, res) => {
     let remainingExemptions = null;
 
     if (isLateCancellation) {
-      // No login here, so premium status is looked up by email.
-      // If no matching User account exists, treat as non-premium.
-      const account = await User.findOne({ email: String(email).toLowerCase() });
+      // Prefer the account that actually owns this booking (booking.userId is set
+      // from the authenticated user at creation time), since the email typed into
+      // the cancellation form can differ from the account's registered email.
+      // Fall back to an email lookup for older bookings saved without a userId.
+      let account = booking.userId ? await User.findById(booking.userId) : null;
+      if (!account) {
+        account = await User.findOne({ email: String(email).toLowerCase() });
+      }
       const isPremium = account?.role === 'premium_user';
 
       if (isPremium) {

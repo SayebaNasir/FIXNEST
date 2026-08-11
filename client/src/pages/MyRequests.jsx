@@ -1,5 +1,3 @@
-
-
 import CancelConfirmModal from "../components/CancelModal";
 import React, { useState, useCallback, useEffect, useContext } from 'react';
 import axios from 'axios';
@@ -94,6 +92,8 @@ const isWithin24Hours = (booking) => {
 const CANCELLABLE_STATUSES = ["pending", "accepted"];
 
 const MyRequests = () => {
+  const { user } = useContext(AuthContext);
+  const isPremium = user?.role === "premium_user";
   const [email, setEmail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [bookings, setBookings] = useState([]);
@@ -109,6 +109,14 @@ const MyRequests = () => {
   const [cancellingId, setCancellingId] = useState(null);
   const [cancelFeedback, setCancelFeedback] = useState({}); // { [bookingId]: { message, feeCharged, feeWaived } }
   const [cancelModalBooking, setCancelModalBooking] = useState(null);
+
+  // If the user is logged in, prefill and auto-search using their account email
+  useEffect(() => {
+    if (user?.email && !searched) {
+      setEmail(user.email);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleSearch = useCallback(
     async (e) => {
@@ -377,7 +385,9 @@ const MyRequests = () => {
                         isWithin24Hours(booking) && (
                           <p className="mt-3 text-xs text-amber-600 font-medium">
                             ⚠️ Within 24 hours of your appointment — cancelling
-                            now may incur a ৳50 fee.
+                            now {isPremium
+                              ? "may use one of your monthly premium fee exemptions"
+                              : "may incur a ৳50 fee"}.
                           </p>
                         )}
 
@@ -514,6 +524,7 @@ const MyRequests = () => {
           cancelModalBooking ? isWithin24Hours(cancelModalBooking) : false
         }
         confirming={cancellingId === cancelModalBooking?._id}
+        isPremium={isPremium}
       />
     </div>
   );
