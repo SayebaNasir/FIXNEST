@@ -199,9 +199,9 @@ router.get('/', async (req, res) => {
       verificationStatus: 'verified'
     };
 
-    // if (currentUser?.role === 'provider') {
-    //   query.userId = { $ne: currentUser.id };
-    // }
+    if (currentUser?.role === 'provider') {
+      query.userId = { $ne: currentUser.id };
+    }
 
     if (serviceType) {
       query.serviceType = {

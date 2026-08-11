@@ -21,6 +21,10 @@ const bookingSchema = new mongoose.Schema({
   cancellationFee: { type: Number, default: 0 },
   feeWaived: { type: Boolean, default: false },
   price: { type: Number, default: 0 },
+  originalPrice: { type: Number, default: 0 },
+  discountApplied: { type: Number, default: 0 }, // Discount in percentage e.g. 10
+  finalPrice: { type: Number, default: 0 },
+  isOffPeak: { type: Boolean, default: false },
   status: {
     type: String,
     enum: ['pending', 'accepted', 'rejected', 'in-progress', 'completed', 'cancelled'],

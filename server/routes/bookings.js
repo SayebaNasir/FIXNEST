@@ -3,8 +3,9 @@ const router = express.Router();
 const Booking = require('../models/Booking');
 const BookingNotification = require('../models/BookingNotification');
 const Provider = require('../models/Provider');
-const auth = require('../middleware/auth');
 const User = require('../models/User');
+const auth = require('../middleware/auth');
+const emailService = require('../services/emailService');
 
 const normalizeTimeSlot = (slot) => {
   if (typeof slot !== 'string') return '';
@@ -200,6 +201,13 @@ router.post('/', auth, async (req, res) => {
       return res.status(409).json({ message: 'This time slot is already booked.' });
     }
 
+    // Check off-peak discount eligibility (< 2 existing bookings in this slot)
+    const slotBookingCount = await Booking.countDocuments({ time: requestedSlot });
+    const isOffPeak = slotBookingCount < 2;
+    const basePrice = provider.pricePerHour || 0;
+    const discountApplied = isOffPeak ? 10 : 0;
+    const finalPrice = isOffPeak ? Math.round(basePrice * 0.9) : basePrice;
+
     const newBooking = new Booking({
       providerId,
       userId: req.user.id,
@@ -209,12 +217,31 @@ router.post('/', auth, async (req, res) => {
       description,
       date,
       time: requestedSlot,
-      price: provider.pricePerHour || 0,
+      price: finalPrice,
+      originalPrice: basePrice,
+      discountApplied,
+      finalPrice,
+      isOffPeak,
       status: 'pending',
-      statusHistory: [{ status: 'pending', note: 'Request submitted by homeowner' }]
+      statusHistory: [{ 
+        status: 'pending', 
+        note: isOffPeak 
+          ? 'Request submitted by homeowner (10% Off-Peak Discount Applied!)' 
+          : 'Request submitted by homeowner' 
+      }]
     });
 
     const savedBooking = await newBooking.save();
+
+    // Trigger automated email confirmation to homeowner and provider
+    User.findById(provider.userId).then((providerUser) => {
+      emailService.sendBookingRequestConfirmation({
+        booking: savedBooking,
+        provider,
+        providerUser
+      }).catch((err) => console.error('Error sending request confirmation email:', err));
+    }).catch((err) => console.error('Error fetching provider user for email:', err));
+
     res.status(201).json({ message: 'Booking request created successfully', booking: savedBooking });
   } catch (error) {
     console.error('Error creating booking:', error);
@@ -345,10 +372,87 @@ router.patch('/:id/status', auth, async (req, res) => {
       });
     }
 
+    // Trigger email alerts based on status transition
+    User.findById(provider.userId).then((providerUser) => {
+      if (status === 'accepted' || status === 'rejected') {
+        emailService.sendBookingStatusAlert({
+          booking,
+          provider,
+          providerUser,
+          status
+        }).catch((err) => console.error(`Error sending ${status} email alert:`, err));
+      } else if (status === 'completed') {
+        emailService.sendJobCompletionNotification({
+          booking,
+          provider,
+          providerUser
+        }).catch((err) => console.error('Error sending job completion email:', err));
+      }
+    }).catch((err) => console.error('Error fetching provider user for status email:', err));
+
     res.json({ message: 'Booking status updated', booking });
   } catch (error) {
     console.error('Error updating booking status:', error);
     res.status(500).json({ message: 'Server error updating booking status' });
+  }
+});
+
+// -----------------------------------------------
+// POST /:id/reminder — Dispatch completion/schedule reminder email for a specific booking
+// -----------------------------------------------
+router.post('/:id/reminder', auth, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    const provider = await Provider.findById(booking.providerId);
+    if (!provider) {
+      return res.status(404).json({ message: 'Provider not found' });
+    }
+
+    const providerUser = await User.findById(provider.userId);
+
+    await emailService.sendJobCompletionReminder({
+      booking,
+      provider,
+      providerUser
+    });
+
+    res.json({ message: 'Completion & schedule reminder emails sent successfully' });
+  } catch (error) {
+    console.error('Error sending booking reminder:', error);
+    res.status(500).json({ message: 'Server error sending reminder' });
+  }
+});
+
+// -----------------------------------------------
+// POST /reminders/send-all — Batch send completion reminders for active/accepted jobs
+// -----------------------------------------------
+router.post('/reminders/send-all', auth, async (req, res) => {
+  try {
+    // Find active jobs (accepted or in-progress)
+    const activeBookings = await Booking.find({ status: { $in: ['accepted', 'in-progress'] } });
+    let count = 0;
+
+    for (const booking of activeBookings) {
+      const provider = await Provider.findById(booking.providerId);
+      if (provider) {
+        const providerUser = await User.findById(provider.userId);
+        await emailService.sendJobCompletionReminder({
+          booking,
+          provider,
+          providerUser
+        }).catch((err) => console.error(`Error sending batch reminder for booking ${booking._id}:`, err));
+        count++;
+      }
+    }
+
+    res.json({ message: `Batch completion reminders dispatched for ${count} active jobs.` });
+  } catch (error) {
+    console.error('Error sending batch reminders:', error);
+    res.status(500).json({ message: 'Server error sending batch reminders' });
   }
 });
 
