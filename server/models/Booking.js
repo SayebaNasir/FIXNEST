@@ -11,10 +11,15 @@ const bookingSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userName: { type: String, required: true },
   userEmail: { type: String, required: true },
+  isEmergency: { type: Boolean, default: false },
   userAddress: { type: String, required: true },
   description: { type: String, required: true },
   date: { type: String, required: true },
   time: { type: String, required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  cancelledAt: { type: Date },
+  cancellationFee: { type: Number, default: 0 },
+  feeWaived: { type: Boolean, default: false },
   price: { type: Number, default: 0 },
   originalPrice: { type: Number, default: 0 },
   discountApplied: { type: Number, default: 0 }, // Discount in percentage e.g. 10
@@ -22,7 +27,7 @@ const bookingSchema = new mongoose.Schema({
   isOffPeak: { type: Boolean, default: false },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected', 'in-progress', 'completed'],
+    enum: ['pending', 'accepted', 'rejected', 'in-progress', 'completed', 'cancelled'],
     default: 'pending'
   },
   statusHistory: { type: [statusHistorySchema], default: [] },

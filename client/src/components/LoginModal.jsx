@@ -82,6 +82,7 @@ const LoginModal = () => {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Account Type</label>
                 <select name="role" value={formData.role} onChange={handleChange} className="w-full rounded-lg border-slate-300 border p-2.5 text-sm focus:ring-primary-500 focus:border-primary-500">
                   <option value="user">Homeowner (Book Services)</option>
+                  <option value="premium_user">Premium Homeowner (Book Services)</option>
                   <option value="provider">Service Provider (Offer Services)</option>
                   <option value="admin">Admin</option>
                 </select>

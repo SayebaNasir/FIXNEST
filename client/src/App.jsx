@@ -9,6 +9,7 @@ import HomeOwnerDashboard from './pages/HomeOwnerDashboard';
 import MyRequests from './pages/MyRequests';
 import OffPeakHeatmap from './pages/OffPeakHeatmap';
 import LoginModal from './components/LoginModal';
+import MyBookings from './pages/MyBookings';
 import { Heart, ClipboardList, LayoutDashboard, ShieldAlert, LogOut, User as UserIcon, Compass } from 'lucide-react';
 
 const NavBar = () => {
@@ -129,7 +130,6 @@ const NavBar = () => {
     </nav>
   );
 };
-
 function App() {
   return (
     <AuthProvider>
@@ -144,6 +144,7 @@ function App() {
               <Route path="/favorites" element={<HomeOwnerDashboard />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/my-requests" element={<MyRequests />} />
+              <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/offpeak-heatmap" element={<OffPeakHeatmap />} />
             </Routes>
           </main>
