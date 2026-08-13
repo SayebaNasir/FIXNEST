@@ -1,12 +1,15 @@
 import axios from "axios";
 import { useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { disconnectSocket, getSocket } from "../socketClient";
 
+const API_URL = "http://localhost:5001";
+
 const ChatPage = () => {
-  const { user, token } = useContext(AuthContext);
+  const { user, token, loading: authLoading } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const socketRef = useRef(null);
   const scrollRef = useRef(null);
 
@@ -20,11 +23,11 @@ const ChatPage = () => {
 
   // Guard route + connect socket once
   useEffect(() => {
-    console.log(token);
-    // if (!user) {
-    //   navigate('/');
-    //   return;
-    // }
+    if (authLoading) return; // wait for AuthContext to restore the session
+    if (!user) {
+      navigate('/');
+      return;
+    }
 
     const socket = getSocket(token);
     socketRef.current = socket;
@@ -39,9 +42,18 @@ const ChatPage = () => {
               String(activeContactRef.current.partnerId));
         return relevant ? [...prev, msg] : prev;
       });
-      setContacts((prev) =>
-        bumpContact(prev, msg.sender, msg.text, msg.createdAt, true),
+      const knownPartner = contactsRef.current.some(
+        (c) => String(c.partnerId) === String(msg.sender),
       );
+      if (knownPartner) {
+        setContacts((prev) =>
+          bumpContact(prev, msg.sender, msg.text, msg.createdAt, true),
+        );
+      } else {
+        // First message from someone not yet in the list — refetch so their
+        // name/role (from the server) shows up instead of guessing at it here.
+        fetchContacts();
+      }
     });
 
     socket.on("messageSent", (msg) => {
@@ -85,6 +97,12 @@ const ChatPage = () => {
     activeContactRef.current = activeContact;
   }, [activeContact]);
 
+  // Same idea, so the socket listener always sees the current contacts list
+  const contactsRef = useRef([]);
+  useEffect(() => {
+    contactsRef.current = contacts;
+  }, [contacts]);
+
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -110,39 +128,50 @@ const ChatPage = () => {
       );
   };
 
+  // Only shows conversations that have actually started — not every provider/
+  // homeowner in the system. Starting a brand-new conversation happens via the
+  // "Message" button on a provider's profile (see the deep-link handling below).
   const fetchContacts = async () => {
-    console.log(token);
     try {
-      const [contactsRes, conversationsRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/messages/contacts", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get("http://localhost:5000/api/messages/conversations", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
-
-      const conversationMap = new Map(
-        conversationsRes.data.map((c) => [String(c.partnerId), c]),
-      );
-
-      const merged = contactsRes.data.map((contact) => {
-        const convo = conversationMap.get(String(contact._id));
-        return {
-          partnerId: contact._id,
-          partnerName: contact.name,
-          partnerRole: contact.role,
-          lastMessage: convo?.lastMessage || "",
-          lastMessageAt: convo?.lastMessageAt || null,
-          unread: convo?.unread || false,
-        };
+      const res = await axios.get(`${API_URL}/api/messages/conversations`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      merged.sort(
-        (a, b) =>
-          new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0),
-      );
-      setContacts(merged);
+      let list = res.data.map((c) => ({
+        partnerId: c.partnerId,
+        partnerName: c.partnerName,
+        partnerRole: c.partnerRole,
+        lastMessage: c.lastMessage || "",
+        lastMessageAt: c.lastMessageAt || null,
+        unread: c.unread || false,
+      }));
+
+      // Deep-linked here from a provider profile's "Message" button: make sure
+      // that contact shows up (and gets opened) even before any message exists.
+      const target = location.state;
+      if (target?.contactId) {
+        const existing = list.find(
+          (c) => String(c.partnerId) === String(target.contactId),
+        );
+        if (!existing) {
+          list = [
+            {
+              partnerId: target.contactId,
+              partnerName: target.contactName,
+              partnerRole: target.contactRole,
+              lastMessage: "",
+              lastMessageAt: null,
+              unread: false,
+            },
+            ...list,
+          ];
+        }
+        setContacts(list);
+        openConversation(existing || list[0]);
+        navigate(location.pathname, { replace: true }); // consume the deep-link
+      } else {
+        setContacts(list);
+      }
     } catch (error) {
       console.error("Error fetching contacts:", error);
     } finally {
@@ -161,7 +190,7 @@ const ChatPage = () => {
     );
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/messages/${contact.partnerId}`,
+        `${API_URL}/api/messages/${contact.partnerId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -215,7 +244,9 @@ const ChatPage = () => {
             <div className="w-full md:w-1/3 border-r border-slate-100 overflow-y-auto">
               {contacts.length === 0 && (
                 <div className="p-6 text-center text-slate-500 text-sm">
-                  No contacts found yet.
+                  {user?.role === "provider"
+                    ? "No conversations yet. They'll show up here once a homeowner messages you."
+                    : "No conversations yet. Message a provider from their profile to start one."}
                 </div>
               )}
               {contacts.map((c) => (
@@ -272,8 +303,8 @@ const ChatPage = () => {
                   <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
                     {messages.map((m) => {
                       const isMine =
-                        String(m.sender) === String(user._id) ||
-                        String(m.sender?._id) === String(user._id);
+                        String(m.sender) === String(user.id) ||
+                        String(m.sender?._id) === String(user.id);
                       return (
                         <div
                           key={m._id}

@@ -14,8 +14,8 @@ const User = require('../models/User');
 router.get('/contacts', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id);
-    const targetRole = me.role === 'provider' ? 'homeowner' : 'provider';
-    const contacts = await User.find({ role: targetRole }).select('name role');
+    const targetRoles = me.role === 'provider' ? ['user', 'premium_user'] : ['provider'];
+    const contacts = await User.find({ role: { $in: targetRoles } }).select('name role');
     res.json(contacts);
   } catch (error) {
     console.error('Error fetching contacts:', error);
