@@ -167,6 +167,21 @@ const MyRequests = () => {
         prev.map((b) => (b._id === booking._id ? res.data.booking : b)),
       );
       setCancelFeedback((prev) => ({ ...prev, [booking._id]: res.data }));
+
+      // A real late-cancellation fee is owed (not waived) — send them to pay it.
+      if (res.data.feeCharged > 0 && token) {
+        setCancelFeedback((prev) => ({
+          ...prev,
+          [booking._id]: { ...res.data, message: `${res.data.message} Redirecting to secure payment...` },
+        }));
+        const paymentRes = await axios.post(
+          `${API_URL}/api/payment/init-cancellation-fee/${booking._id}`,
+          {},
+          authHeaders
+        );
+        window.location.href = paymentRes.data.GatewayPageURL;
+        return;
+      }
     } catch (err) {
       console.error("Error cancelling booking:", err);
       setCancelFeedback((prev) => ({

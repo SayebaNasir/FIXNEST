@@ -15,6 +15,15 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   premiumCancellationsUsed: { type: Number, default: 0 },
   premiumCancellationsMonth: { type: String, default: '' },
+  subscriptionPlan: { type: String, enum: ['free', 'premium'], default: 'free' },
+  subscriptionBillingCycle: { type: String, default: null }, // 'monthly' | 'yearly' | null
+  subscriptionExpiresAt: { type: Date, default: null },
+  subscriptionTransactionId: { type: String, default: '' },
+  subscriptionPaymentStatus: {
+    type: String,
+    enum: ['none', 'pending', 'paid', 'failed'],
+    default: 'none'
+  },
 });
 
 module.exports = mongoose.model('User', userSchema);

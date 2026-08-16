@@ -10,8 +10,10 @@ import MyRequests from './pages/MyRequests';
 import OffPeakHeatmap from './pages/OffPeakHeatmap';
 import LoginModal from './components/LoginModal';
 import MyBookings from './pages/MyBookings';
+import PaymentResult from './pages/PaymentResult';
+import Subscription from './pages/Subscription';
 import ChatPage from './pages/Chatpage';
-import { Heart, ClipboardList, LayoutDashboard, ShieldAlert, LogOut, User as UserIcon, Compass, MessageCircle } from 'lucide-react';
+import { Heart, ClipboardList, LayoutDashboard, ShieldAlert, LogOut, User as UserIcon, Compass, MessageCircle, Crown } from 'lucide-react';
 
 const NavBar = () => {
   const { user, logout, setIsLoginModalOpen } = useContext(AuthContext);
@@ -86,6 +88,14 @@ const NavBar = () => {
                   <ClipboardList className="w-4 h-4" /> My Bookings
                 </Link>
 
+                {(user.role === 'user' || user.role === 'premium_user') && (
+                  <Link
+                    to="/subscription"
+                    className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      isActive('/subscription')`}<
+                      <Crown className="w-4 h-4" /> {user.role === 'premium_user' ? 'Premium' : 'Upgrade'}
+                      </Link>)}
+                      
                 {user.role !== 'admin' && (
                   <Link
                     to="/messages"
@@ -160,6 +170,8 @@ function App() {
               <Route path="/my-requests" element={<MyRequests />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/offpeak-heatmap" element={<OffPeakHeatmap />} />
+              <Route path="/payment-result" element={<PaymentResult />} />
+              <Route path="/subscription" element={<Subscription />} />
               <Route path="/messages" element={<ChatPage />} />
             </Routes>
           </main>

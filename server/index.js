@@ -9,6 +9,8 @@ const bookingRoutes = require('./routes/bookings');
 const authRoutes = require('./routes/auth');
 const geocodeRoutes = require('./routes/geocode');
 const analyticsRoutes = require('./routes/analytics');
+const paymentRoutes = require('./routes/payment');
+const subscriptionRoutes = require('./routes/subscription');
 const messageRoutes = require('./routes/messages');
 const initSocket = require('./socket');
 const app = express();
@@ -33,6 +35,8 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/geocode', geocodeRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/messages', messageRoutes);
 
 // Connect to MongoDB
