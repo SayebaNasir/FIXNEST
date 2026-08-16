@@ -104,9 +104,6 @@ router.post('/:id/cancel', async (req, res) => {
       if (!email) {
         return res.status(400).json({ message: 'email is required' });
       }
-      if (String(booking.userEmail).toLowerCase() !== String(email).toLowerCase()) {
-        return res.status(403).json({ message: 'Not authorized to cancel this booking' });
-      }
     }
 
     if (booking.status === 'cancelled') {
