@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { X, Calendar, Clock, Tag, Sparkles, CheckCircle2, Zap } from 'lucide-react';
+import { X, Calendar, Clock, Tag, Sparkles, Zap } from 'lucide-react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 
@@ -91,27 +91,22 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     setErrorMessage('');
 
     try {
-      await axios.post('http://localhost:5001/api/bookings', {
+      const bookingRes = await axios.post('http://localhost:5001/api/bookings', {
         ...formData,
         providerId: provider._id,
         userId: user?._id,
         amount: isPremium ? discountedAmount : BOOKING_AMOUNT,
         isEmergency: isPremium ? formData.isEmergency : false,
       });
-      setStatus('success');
-      setTimeout(() => {
-        onClose();
-        setStatus('idle');
-        setFormData({
-          userName: '',
-          userEmail: '',
-          userAddress: '',
-          description: '',
-          date: '',
-          time: '',
-          isEmergency: false,
-        });
-      }, 2000);
+
+      setStatus('redirecting');
+      const bookingId = bookingRes.data.booking._id;
+      const paymentRes = await axios.post(
+        `http://localhost:5001/api/payment/init/${bookingId}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      window.location.href = paymentRes.data.GatewayPageURL;
     } catch (error) {
       console.error('Booking failed', error);
       setErrorMessage(error.response?.data?.message || 'Failed to submit request. Please try again.');
@@ -177,14 +172,14 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
 
         {/* Form Body */}
         <div className="p-6 overflow-y-auto">
-          {status === 'success' ? (
+          {status === 'redirecting' ? (
             <div className="text-center py-10 space-y-3">
               <div className="w-16 h-16 bg-pink-100 text-pink-600 border border-pink-200 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                <CheckCircle2 className="w-10 h-10" />
+                <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <h3 className="text-2xl font-black text-slate-900 font-display">Booking Requested!</h3>
+              <h3 className="text-2xl font-black text-slate-900 font-display">Redirecting to Secure Payment...</h3>
               <p className="text-slate-600 text-sm max-w-xs mx-auto">
-                An automated confirmation email has been dispatched to <strong>{formData.userEmail}</strong>.
+                Your booking request has been created. Taking you to SSLCommerz to complete payment.
               </p>
             </div>
           ) : (

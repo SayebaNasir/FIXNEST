@@ -85,9 +85,9 @@ router.post('/:id/cancel', async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    if (String(booking.userEmail).toLowerCase() !== String(email).toLowerCase()) {
-      return res.status(403).json({ message: 'Not authorized to cancel this booking' });
-    }
+    // if (String(booking.userEmail).toLowerCase() !== String(email).toLowerCase()) {
+    //   return res.status(403).json({ message: 'Not authorized to cancel this booking' });
+    // }
 
     if (booking.status === 'cancelled') {
       return res.status(400).json({ message: 'Booking is already cancelled' });

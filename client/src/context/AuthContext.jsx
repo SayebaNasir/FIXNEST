@@ -82,6 +82,16 @@ export const AuthProvider = ({ children }) => {
     window.location.replace('/');
   };
 
+  // Merges fresh fields (e.g. an updated role after a subscription payment) into
+  // the cached user object, without requiring a full re-login.
+  const updateUser = (patch) => {
+    setUser((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
     <AuthContext.Provider value={{
   user,
@@ -90,6 +100,7 @@ export const AuthProvider = ({ children }) => {
   register,
   logout,
   clearAuthState,
+  updateUser,
   loading,
   isLoginModalOpen,
   setIsLoginModalOpen

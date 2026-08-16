@@ -27,6 +27,14 @@ const auth = async (req, res, next) => {
       });
     }
 
+    // Lazily downgrade an expired Premium subscription back to Free.
+    if (user.role === 'premium_user' && user.subscriptionExpiresAt && user.subscriptionExpiresAt < new Date()) {
+      user.role = 'user';
+      user.subscriptionPlan = 'free';
+      user.subscriptionBillingCycle = null;
+      await user.save();
+    }
+
     req.user = {
       ...decoded,
       role: user.role,
