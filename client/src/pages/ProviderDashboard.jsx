@@ -4,7 +4,11 @@ import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import LocationPicker from '../components/LocationPicker';
 import ReviewModal from '../components/ReviewModal';
+import RescheduleModal from '../components/RescheduleModal';
+import { MessageCircle } from 'lucide-react';
 const API_URL = 'http://localhost:5001';
+
+const RESCHEDULABLE_STATUSES = ['pending', 'accepted', 'in-progress'];
 
 const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const timeSlotOptions = [
@@ -75,6 +79,10 @@ const ProviderDashboard = () => {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewBookingId, setReviewBookingId] = useState(null);
   const [reviewedBookings, setReviewedBookings] = useState({});
+
+  const [rescheduleModalBooking, setRescheduleModalBooking] = useState(null);
+  const [reschedulingId, setReschedulingId] = useState(null);
+  const [rescheduleError, setRescheduleError] = useState('');
 
   // Fetch pending count for notification badge
   useEffect(() => {
@@ -167,6 +175,44 @@ const ProviderDashboard = () => {
       console.error('Failed to update booking status:', error);
     } finally {
       setUpdatingBookingId(null);
+    }
+  };
+
+  const openRescheduleModal = (booking) => {
+    setRescheduleError('');
+    setRescheduleModalBooking(booking);
+  };
+
+  const closeRescheduleModal = () => {
+    if (reschedulingId) return; // don't allow closing mid-request
+    setRescheduleModalBooking(null);
+    setRescheduleError('');
+  };
+
+  const confirmReschedule = async ({ date, time }) => {
+    const booking = rescheduleModalBooking;
+    if (!booking) return;
+
+    setReschedulingId(booking._id);
+    setRescheduleError('');
+
+    try {
+      const res = await axios.patch(
+        `${API_URL}/api/bookings/${booking._id}/reschedule`,
+        { date, time },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProviderBookings((prev) =>
+        prev.map((b) => (b._id === booking._id ? res.data.booking : b))
+      );
+      setRescheduleModalBooking(null);
+    } catch (error) {
+      console.error('Failed to reschedule booking:', error);
+      setRescheduleError(
+        error.response?.data?.message || 'Failed to reschedule booking. Please try again.'
+      );
+    } finally {
+      setReschedulingId(null);
     }
   };
 
@@ -1229,6 +1275,18 @@ const ProviderDashboard = () => {
 
                     {/* Action Buttons */}
                     <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => navigate('/messages', {
+                          state: {
+                            contactId: booking.userId,
+                            contactName: booking.userName,
+                            contactRole: 'homeowner'
+                          }
+                        })}
+                        className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5"
+                      >
+                        <MessageCircle className="w-4 h-4" /> Message
+                      </button>
                       {booking.status === 'pending' && (
                         <>
                           <button
@@ -1263,6 +1321,15 @@ const ProviderDashboard = () => {
                           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors"
                         >
                           {isUpdating ? 'Updating...' : '✔ Mark Completed'}
+                        </button>
+                      )}
+                      {RESCHEDULABLE_STATUSES.includes(booking.status) && (
+                        <button
+                          disabled={reschedulingId === booking._id}
+                          onClick={() => openRescheduleModal(booking)}
+                          className="px-4 py-2 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 text-purple-700 border border-purple-200 text-sm font-bold rounded-xl transition-colors"
+                        >
+                          {reschedulingId === booking._id ? 'Rescheduling...' : '↻ Reschedule'}
                         </button>
                       )}
                       {booking.status === 'rejected' && (
@@ -1300,6 +1367,17 @@ const ProviderDashboard = () => {
           onReviewSubmitted={() => {
             setReviewedBookings(prev => ({ ...prev, [reviewBookingId]: true }));
           }}
+        />
+
+        {/* Reschedule Modal */}
+        <RescheduleModal
+          isOpen={!!rescheduleModalBooking}
+          onClose={closeRescheduleModal}
+          onConfirm={confirmReschedule}
+          booking={rescheduleModalBooking}
+          availability={formData.availability}
+          submitting={reschedulingId === rescheduleModalBooking?._id}
+          error={rescheduleError}
         />
 
       </div>

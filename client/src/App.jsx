@@ -12,7 +12,8 @@ import LoginModal from './components/LoginModal';
 import MyBookings from './pages/MyBookings';
 import PaymentResult from './pages/PaymentResult';
 import Subscription from './pages/Subscription';
-import { Heart, ClipboardList, LayoutDashboard, ShieldAlert, LogOut, User as UserIcon, Compass, Crown } from 'lucide-react';
+import ChatPage from './pages/Chatpage';
+import { Heart, ClipboardList, LayoutDashboard, ShieldAlert, LogOut, User as UserIcon, Compass, MessageCircle, Crown } from 'lucide-react';
 
 const NavBar = () => {
   const { user, logout, setIsLoginModalOpen } = useContext(AuthContext);
@@ -91,12 +92,20 @@ const NavBar = () => {
                   <Link
                     to="/subscription"
                     className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                      isActive('/subscription')
+                      isActive('/subscription')`}<
+                      <Crown className="w-4 h-4" /> {user.role === 'premium_user' ? 'Premium' : 'Upgrade'}
+                      </Link>)}
+                      
+                {user.role !== 'admin' && (
+                  <Link
+                    to="/messages"
+                    className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      isActive('/messages')
                         ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md shadow-pink-200'
                         : 'text-slate-600 hover:text-purple-600 hover:bg-purple-50/60'
                     }`}
                   >
-                    <Crown className="w-4 h-4" /> {user.role === 'premium_user' ? 'Premium' : 'Upgrade'}
+                    <MessageCircle className="w-4 h-4" /> Messages
                   </Link>
                 )}
 
@@ -163,6 +172,7 @@ function App() {
               <Route path="/offpeak-heatmap" element={<OffPeakHeatmap />} />
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/subscription" element={<Subscription />} />
+              <Route path="/messages" element={<ChatPage />} />
             </Routes>
           </main>
           <LoginModal />

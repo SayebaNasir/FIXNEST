@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const Booking = require('../models/Booking');
 const BookingNotification = require('../models/BookingNotification');
 const Provider = require('../models/Provider');
@@ -76,18 +77,37 @@ function parseBookingDateTime(dateStr, timeStr) {
 router.post('/:id/cancel', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ message: 'email is required' });
-    }
 
     const booking = await Booking.findById(req.params.id);
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // if (String(booking.userEmail).toLowerCase() !== String(email).toLowerCase()) {
-    //   return res.status(403).json({ message: 'Not authorized to cancel this booking' });
-    // }
+    // Prefer verifying ownership via the logged-in account (booking.userId is the
+    // reliable link set at creation time), since the email typed into the booking
+    // form can differ from the account's registered email. Falls back to matching
+    // the typed email for guests who aren't logged in.
+    let authorized = false;
+    const authHeader = req.header('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'fallback_secret');
+        if (booking.userId && String(booking.userId) === String(decoded.id)) {
+          authorized = true;
+        }
+      } catch {
+        // invalid/expired token — fall through to the email check below
+      }
+    }
+
+    if (!authorized) {
+      if (!email) {
+        return res.status(400).json({ message: 'email is required' });
+      }
+      if (String(booking.userEmail).toLowerCase() !== String(email).toLowerCase()) {
+        return res.status(403).json({ message: 'Not authorized to cancel this booking' });
+      }
+    }
 
     if (booking.status === 'cancelled') {
       return res.status(400).json({ message: 'Booking is already cancelled' });
@@ -158,6 +178,100 @@ router.post('/:id/cancel', async (req, res) => {
   } catch (error) {
     console.error('Error cancelling booking:', error);
     res.status(500).json({ message: 'Server error cancelling booking' });
+  }
+});
+
+// -----------------------------------------------
+// PATCH /:id/reschedule — Either the homeowner or the provider moves an
+// active booking to a new date/time. Takes effect immediately; the other
+// party is notified by email (and, for the homeowner, an in-app notification).
+// -----------------------------------------------
+const RESCHEDULABLE_STATUSES = ['pending', 'accepted', 'in-progress'];
+
+router.patch('/:id/reschedule', auth, async (req, res) => {
+  try {
+    const { date, time } = req.body;
+    if (!date || !time) {
+      return res.status(400).json({ message: 'date and time are required' });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (!RESCHEDULABLE_STATUSES.includes(booking.status)) {
+      return res.status(400).json({ message: `Bookings with status "${booking.status}" cannot be rescheduled.` });
+    }
+
+    const provider = await Provider.findById(booking.providerId);
+    if (!provider) {
+      return res.status(404).json({ message: 'Provider not found' });
+    }
+
+    const isHomeowner = String(booking.userId) === String(req.user.id);
+    const isProvider = String(provider.userId) === String(req.user.id);
+    if (!isHomeowner && !isProvider) {
+      return res.status(403).json({ message: 'Not authorized to reschedule this booking' });
+    }
+    const initiatedBy = isProvider ? 'provider' : 'homeowner';
+
+    const requestedDay = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const requestedSlot = normalizeTimeSlot(time);
+    const availabilityEntry = provider.availability?.find((entry) => entry.day === requestedDay);
+    const availableSlots = (availabilityEntry?.slots || []).map(normalizeTimeSlot);
+
+    if (!availabilityEntry || !availableSlots.includes(requestedSlot)) {
+      return res.status(400).json({ message: 'Provider is not available at the selected time.' });
+    }
+
+    const conflictingBooking = await Booking.findOne({
+      _id: { $ne: booking._id },
+      providerId: booking.providerId,
+      date,
+      time: requestedSlot,
+      status: { $in: ['pending', 'accepted', 'in-progress'] }
+    });
+    if (conflictingBooking) {
+      return res.status(409).json({ message: 'This time slot is already booked.' });
+    }
+
+    const oldDate = booking.date;
+    const oldTime = booking.time;
+    const initiatorName = initiatedBy === 'provider' ? provider.name : booking.userName;
+
+    booking.date = date;
+    booking.time = requestedSlot;
+    booking.statusHistory.push({
+      status: booking.status,
+      note: `Rescheduled by ${initiatorName} from ${oldDate} ${oldTime} to ${date} ${requestedSlot}`
+    });
+    await booking.save();
+
+    // In-app notification for the homeowner (mirrors status-change notifications)
+    await BookingNotification.create({
+      userId: booking.userId,
+      userEmail: booking.userEmail,
+      bookingId: booking._id,
+      providerName: provider.name,
+      serviceType: provider.serviceType || '',
+      status: booking.status,
+      message: initiatedBy === 'provider'
+        ? `${provider.name} rescheduled your booking to ${date} at ${requestedSlot}.`
+        : `Your booking with ${provider.name} was rescheduled to ${date} at ${requestedSlot}.`
+    });
+
+    // Email both parties — the provider must be notified by mail per the spec
+    User.findById(provider.userId).then((providerUser) => {
+      emailService.sendRescheduleNotification({
+        booking, provider, providerUser, oldDate, oldTime, initiatedBy
+      }).catch((err) => console.error('Error sending reschedule email:', err));
+    }).catch((err) => console.error('Error fetching provider user for reschedule email:', err));
+
+    res.json({ message: 'Booking rescheduled successfully', booking });
+  } catch (error) {
+    console.error('Error rescheduling booking:', error);
+    res.status(500).json({ message: 'Server error rescheduling booking' });
   }
 });
 
@@ -255,7 +369,7 @@ router.post('/', auth, async (req, res) => {
 router.get('/my', auth, async (req, res) => {
   try {
     const bookings = await Booking.find({ userId: req.user.id })
-      .populate('providerId', 'name serviceType')
+      .populate('providerId', 'name serviceType availability')
       .sort({ createdAt: -1 });
 
     res.json(bookings);

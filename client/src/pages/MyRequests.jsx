@@ -1,4 +1,5 @@
 import CancelConfirmModal from "../components/CancelModal";
+import RescheduleModal from "../components/RescheduleModal";
 import React, { useState, useCallback, useEffect, useContext } from 'react';
 import axios from 'axios';
 import ReviewModal from '../components/ReviewModal';
@@ -62,6 +63,7 @@ const isWithin24Hours = (booking) => {
 };
 
 const CANCELLABLE_STATUSES = ["pending", "accepted"];
+const RESCHEDULABLE_STATUSES = ["pending", "accepted", "in-progress"];
 
 const MyRequests = () => {
   const { user, token } = useContext(AuthContext);
@@ -80,6 +82,10 @@ const MyRequests = () => {
   const [cancellingId, setCancellingId] = useState(null);
   const [cancelFeedback, setCancelFeedback] = useState({}); // { [bookingId]: { message, feeCharged, feeWaived } }
   const [cancelModalBooking, setCancelModalBooking] = useState(null);
+
+  const [rescheduleModalBooking, setRescheduleModalBooking] = useState(null);
+  const [reschedulingId, setReschedulingId] = useState(null);
+  const [rescheduleError, setRescheduleError] = useState('');
 
   const fetchUserBookings = useCallback(async () => {
     if (!user?.email) {
@@ -189,6 +195,47 @@ const MyRequests = () => {
     } finally {
       setCancellingId(null);
       setCancelModalBooking(null);
+    }
+  };
+
+  const openRescheduleModal = (booking) => {
+    setRescheduleError('');
+    setRescheduleModalBooking(booking);
+  };
+
+  const closeRescheduleModal = () => {
+    if (reschedulingId) return; // don't allow closing mid-request
+    setRescheduleModalBooking(null);
+    setRescheduleError('');
+  };
+
+  const confirmReschedule = async ({ date, time }) => {
+    const booking = rescheduleModalBooking;
+    if (!booking) return;
+
+    setReschedulingId(booking._id);
+    setRescheduleError('');
+
+    const authHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
+    try {
+      const res = await axios.patch(
+        `${API_URL}/api/bookings/${booking._id}/reschedule`,
+        { date, time },
+        authHeaders
+      );
+      setBookings((prev) =>
+        prev.map((b) => (b._id === booking._id ? res.data.booking : b)),
+      );
+      setRescheduleModalBooking(null);
+    } catch (err) {
+      console.error("Error rescheduling booking:", err);
+      setRescheduleError(
+        err.response?.data?.message ||
+          "Failed to reschedule booking. Please try again.",
+      );
+    } finally {
+      setReschedulingId(null);
     }
   };
 
@@ -337,6 +384,16 @@ const MyRequests = () => {
                         <span className="text-slate-400">Submitted: {formatDate(booking.createdAt)}</span>
 
                         <div className="flex items-center gap-2">
+                          {RESCHEDULABLE_STATUSES.includes(booking.status) && (
+                            <button
+                              onClick={() => openRescheduleModal(booking)}
+                              disabled={reschedulingId === booking._id}
+                              className="px-4 py-2 bg-purple-50 hover:bg-purple-100 disabled:bg-slate-50 disabled:text-slate-400 text-purple-700 text-xs font-black rounded-2xl transition-colors cursor-pointer"
+                            >
+                              {reschedulingId === booking._id ? "Rescheduling..." : "Reschedule"}
+                            </button>
+                          )}
+
                           {CANCELLABLE_STATUSES.includes(booking.status) && (
                             <button
                               onClick={() => openCancelModal(booking)}
@@ -428,6 +485,17 @@ const MyRequests = () => {
         isLate={cancelModalBooking ? isWithin24Hours(cancelModalBooking) : false}
         confirming={cancellingId === cancelModalBooking?._id}
         isPremium={isPremium}
+      />
+
+      {/* Reschedule Modal */}
+      <RescheduleModal
+        isOpen={!!rescheduleModalBooking}
+        onClose={closeRescheduleModal}
+        onConfirm={confirmReschedule}
+        booking={rescheduleModalBooking}
+        availability={rescheduleModalBooking?.providerId?.availability}
+        submitting={reschedulingId === rescheduleModalBooking?._id}
+        error={rescheduleError}
       />
     </div>
   );
