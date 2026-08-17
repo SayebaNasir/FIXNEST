@@ -59,9 +59,17 @@ router.post('/init/:bookingId', auth, async (req, res) => {
       return res.status(400).json({ message: 'This booking has already been paid for' });
     }
 
-    const amount = booking.finalPrice || booking.price || 0;
-    if (amount < 10) {
-      return res.status(400).json({ message: 'Booking amount is too low to process payment' });
+    let amount = booking.finalPrice || booking.price || 0;
+    
+    // SSLCommerz minimum is 10 Taka. If discount brings it under 10, waive the remaining change.
+    if (amount > 0 && amount < 10) {
+      amount = 0;
+    }
+    
+    if (amount === 0) {
+      booking.paymentStatus = 'paid';
+      await booking.save();
+      return res.json({ GatewayPageURL: `${getAppUrl()}/payment-result?status=success` });
     }
 
     const provider = await Provider.findById(booking.providerId);
@@ -242,6 +250,10 @@ async function markPaid({ kind, target, billingCycle }) {
     const base = target.subscriptionExpiresAt && target.subscriptionExpiresAt > now
       ? target.subscriptionExpiresAt
       : now;
+      
+    // Award points for premium renewal
+    target.rewardPoints = (target.rewardPoints || 0) + 34;
+    
     target.subscriptionExpiresAt = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
     target.subscriptionPlan = 'premium';
     target.subscriptionBillingCycle = billingCycle;
@@ -262,6 +274,15 @@ async function markFailed({ kind, target }) {
   } else if (kind === 'subscription') {
     if (target.subscriptionPaymentStatus !== 'paid') target.subscriptionPaymentStatus = 'failed';
   } else if (target.paymentStatus !== 'paid') {
+    if (target.paymentStatus !== 'failed' && kind === 'booking' && target.pointsRedeemed > 0) {
+      const user = await User.findById(target.userId);
+      if (user) {
+        user.rewardPoints = (user.rewardPoints || 0) + target.pointsRedeemed;
+        await user.save();
+      }
+      target.pointsRedeemed = 0;
+      target.discountFromPoints = 0;
+    }
     target.paymentStatus = 'failed';
   }
 
@@ -315,6 +336,9 @@ router.post('/fail', async (req, res) => {
 router.post('/cancel', async (req, res) => {
   const { tran_id } = req.body;
   const resolved = await resolvePaymentTarget(tran_id);
+  if (resolved.target) {
+    await markFailed(resolved);
+  }
   res.redirect(`${getAppUrl()}/payment-result?status=cancel&type=${resolved.kind || ''}&bookingId=${resolved.target?._id || ''}`);
 });
 

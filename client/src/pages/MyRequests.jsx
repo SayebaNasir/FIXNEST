@@ -405,18 +405,25 @@ const MyRequests = () => {
                           )}
 
                           {booking.status === 'completed' && (
-                            reviewedBookings[booking._id] ? (
-                              <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-black rounded-xl">
-                                ✓ Reviewed
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => { setReviewBookingId(booking._id); setReviewModalOpen(true); }}
-                                className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-black rounded-2xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                              >
-                                <Star className="w-3.5 h-3.5 fill-slate-950" /> Rate &amp; Review Provider
-                              </button>
-                            )
+                            <>
+                              {booking.pointsEarned > 0 && (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-50 text-pink-600 border border-pink-200 text-xs font-black rounded-xl">
+                                  <Sparkles className="w-3.5 h-3.5 text-pink-500" /> +{booking.pointsEarned} Points Earned
+                                </span>
+                              )}
+                              {reviewedBookings[booking._id] ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-black rounded-xl">
+                                  ✓ Reviewed
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => { setReviewBookingId(booking._id); setReviewModalOpen(true); }}
+                                  className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-black rounded-2xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <Star className="w-3.5 h-3.5 fill-slate-950" /> Rate &amp; Review Provider
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

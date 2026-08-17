@@ -92,6 +92,18 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+  const refreshProfile = async () => {
+    try {
+      if (!token) return;
+      const res = await axios.get('http://localhost:5001/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      updateUser(res.data);
+    } catch (error) {
+      console.error('Failed to refresh profile:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
   user,
@@ -101,6 +113,7 @@ export const AuthProvider = ({ children }) => {
   logout,
   clearAuthState,
   updateUser,
+  refreshProfile,
   loading,
   isLoginModalOpen,
   setIsLoginModalOpen

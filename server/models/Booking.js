@@ -25,6 +25,9 @@ const bookingSchema = new mongoose.Schema({
   discountApplied: { type: Number, default: 0 }, // Discount in percentage e.g. 10
   finalPrice: { type: Number, default: 0 },
   isOffPeak: { type: Boolean, default: false },
+  pointsRedeemed: { type: Number, default: 0 },
+  discountFromPoints: { type: Number, default: 0 },
+  pointsEarned: { type: Number, default: 0 },
   paymentStatus: {
     type: String,
     enum: ['unpaid', 'paid', 'failed'],

@@ -278,7 +278,7 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
 // -----------------------------------------------
 router.post('/', auth, async (req, res) => {
   try {
-    const { providerId, userName, userEmail, userAddress, description, date, time } = req.body;
+    const { providerId, userName, userEmail, userAddress, description, date, time, redeemPoints } = req.body;
 
     if (!providerId || !date || !time) {
       return res.status(400).json({ message: 'Provider, date and time are required' });
@@ -317,7 +317,32 @@ router.post('/', auth, async (req, res) => {
     const isOffPeak = slotBookingCount < 2;
     const basePrice = provider.pricePerHour || 0;
     const discountApplied = isOffPeak ? 10 : 0;
-    const finalPrice = isOffPeak ? Math.round(basePrice * 0.9) : basePrice;
+    let finalPrice = isOffPeak ? Math.round(basePrice * 0.9) : basePrice;
+
+    // Reward Points Redemption
+    let pointsRedeemed = 0;
+    let discountFromPoints = 0;
+    const bookingUser = await User.findById(req.user.id);
+    const rewardPoints = bookingUser ? bookingUser.rewardPoints : 0;
+
+    if (redeemPoints && rewardPoints > 0) {
+      const maxDiscount = finalPrice;
+      const pointsValue = rewardPoints * 3; // 1 point = 3 Taka
+      if (pointsValue <= maxDiscount) {
+        discountFromPoints = pointsValue;
+        pointsRedeemed = rewardPoints;
+      } else {
+        discountFromPoints = maxDiscount;
+        pointsRedeemed = Math.ceil(maxDiscount / 3);
+      }
+      finalPrice = Math.max(0, finalPrice - discountFromPoints);
+
+      // Deduct points from user
+      if (bookingUser) {
+        bookingUser.rewardPoints -= pointsRedeemed;
+        await bookingUser.save();
+      }
+    }
 
     const newBooking = new Booking({
       providerId,
@@ -328,11 +353,13 @@ router.post('/', auth, async (req, res) => {
       description,
       date,
       time: requestedSlot,
-      price: finalPrice,
+      price: finalPrice + discountFromPoints,
       originalPrice: basePrice,
       discountApplied,
       finalPrice,
       isOffPeak,
+      pointsRedeemed,
+      discountFromPoints,
       status: 'pending',
       statusHistory: [{ 
         status: 'pending', 
@@ -467,6 +494,16 @@ router.patch('/:id/status', auth, async (req, res) => {
       status,
       note: `Status updated to "${status}" by provider`
     });
+
+    if (status === 'completed' && (!booking.pointsEarned || booking.pointsEarned === 0)) {
+      const bookingUser = await User.findById(booking.userId);
+      if (bookingUser) {
+        bookingUser.rewardPoints = (bookingUser.rewardPoints || 0) + 5;
+        await bookingUser.save();
+        booking.pointsEarned = 5;
+      }
+    }
+
     await booking.save();
 
     // Create a homeowner notification

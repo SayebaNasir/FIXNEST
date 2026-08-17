@@ -24,6 +24,8 @@ const userSchema = new mongoose.Schema({
     enum: ['none', 'pending', 'paid', 'failed'],
     default: 'none'
   },
+  rewardPoints: { type: Number, default: 0 },
 });
 
 module.exports = mongoose.model('User', userSchema);
+

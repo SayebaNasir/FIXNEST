@@ -7,9 +7,11 @@ const BOOKING_AMOUNT = 200; // ৳
 const PREMIUM_DISCOUNT = 0.05; // 5%
 
 const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
-  const { token, user } = useContext(AuthContext);
+  const { token, user, refreshProfile } = useContext(AuthContext);
   const isPremium = user?.role === 'premium_user';
   const discountedAmount = BOOKING_AMOUNT - BOOKING_AMOUNT * PREMIUM_DISCOUNT;
+  const rewardPoints = user?.rewardPoints || 0;
+  const pointsValue = rewardPoints * 3;
 
   const [formData, setFormData] = useState({
     userName: '',
@@ -19,10 +21,17 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     date: '',
     time: '',
     isEmergency: false,
+    redeemPoints: false,
   });
   const [status, setStatus] = useState('idle'); // idle, submitting, success, error
   const [errorMessage, setErrorMessage] = useState('');
   const [offPeakInfo, setOffPeakInfo] = useState({ isOffPeak: false, discountPercentage: 0 });
+
+  useEffect(() => {
+    if (isOpen && refreshProfile) {
+      refreshProfile();
+    }
+  }, [isOpen]); // Run only when modal opens
 
   useEffect(() => {
     if (isOpen) {
@@ -50,12 +59,13 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
         date: initialDate,
         time: initialSlot?.time || '',
         isEmergency: false,
+        redeemPoints: false,
       });
       setStatus('idle');
       setErrorMessage('');
       setOffPeakInfo({ isOffPeak: false, discountPercentage: 0 });
     }
-  }, [isOpen, initialSlot, user]);
+  }, [isOpen, initialSlot]); // Removed user from dependencies to prevent infinite loops and form resets
 
   // Check off-peak discount whenever time slot changes
   useEffect(() => {
@@ -85,17 +95,26 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     setFormData((prev) => ({ ...prev, isEmergency: !prev.isEmergency }));
   };
 
+  const toggleRedeemPoints = () => {
+    if (rewardPoints > 0) {
+      setFormData((prev) => ({ ...prev, redeemPoints: !prev.redeemPoints }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('submitting');
     setErrorMessage('');
 
     try {
+      const baseAmount = isPremium ? discountedAmount : BOOKING_AMOUNT;
+      const discountFromPoints = formData.redeemPoints ? Math.min(pointsValue, baseAmount) : 0;
+      
       const bookingRes = await axios.post('http://localhost:5001/api/bookings', {
         ...formData,
         providerId: provider._id,
         userId: user?._id,
-        amount: isPremium ? discountedAmount : BOOKING_AMOUNT,
+        amount: baseAmount - discountFromPoints,
         isEmergency: isPremium ? formData.isEmergency : false,
       });
 
@@ -150,6 +169,10 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
   const basePrice = provider.pricePerHour || 0;
   const discountedPrice = Math.round(basePrice * 0.9);
 
+  const baseBookingAmount = isPremium ? discountedAmount : BOOKING_AMOUNT;
+  const discountFromPoints = formData.redeemPoints ? Math.min(pointsValue, baseBookingAmount) : 0;
+  const finalDisplayAmount = baseBookingAmount - discountFromPoints;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
       <div className="bg-white border border-pink-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] text-slate-800">
@@ -197,14 +220,52 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
                   {isPremium && (
                     <p className="text-[11px] text-pink-700 mt-0.5">5% premium discount applied automatically</p>
                   )}
+                  {formData.redeemPoints && (
+                    <p className="text-[11px] text-green-700 mt-0.5">Reward points discount applied</p>
+                  )}
                 </div>
                 <div className="text-right">
-                  {isPremium && <p className="text-xs text-slate-400 line-through">৳{BOOKING_AMOUNT}</p>}
-                  <p className={`text-lg font-black ${isPremium ? 'text-purple-700' : 'text-slate-900'}`}>
-                    ৳{isPremium ? discountedAmount.toFixed(2) : BOOKING_AMOUNT}
+                  {(isPremium || formData.redeemPoints) && <p className="text-xs text-slate-400 line-through">৳{BOOKING_AMOUNT}</p>}
+                  <p className={`text-lg font-black ${isPremium || formData.redeemPoints ? 'text-purple-700' : 'text-slate-900'}`}>
+                    ৳{finalDisplayAmount.toFixed(2)}
                   </p>
                 </div>
               </div>
+
+              {/* REWARD POINTS TOGGLE */}
+              {rewardPoints > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleRedeemPoints}
+                  className={`w-full rounded-2xl p-4 flex items-center justify-between border transition-colors ${
+                    formData.redeemPoints ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-left">
+                    <Sparkles className={`w-4 h-4 ${formData.redeemPoints ? 'text-green-600' : 'text-yellow-500'}`} />
+                    <div>
+                      <p className={`text-xs font-black uppercase tracking-wider ${formData.redeemPoints ? 'text-green-700' : 'text-slate-700'}`}>
+                        Redeem Reward Points
+                      </p>
+                      <p className={`text-[11px] mt-0.5 ${formData.redeemPoints ? 'text-green-600' : 'text-slate-500'}`}>
+                        You have {rewardPoints} points (Worth ৳{pointsValue}). Use them to get a discount!
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                      formData.redeemPoints ? 'bg-green-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        formData.redeemPoints ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </span>
+                </button>
+              )}
+
 
               {/* PREMIUM EMERGENCY TOGGLE */}
               {isPremium && (
