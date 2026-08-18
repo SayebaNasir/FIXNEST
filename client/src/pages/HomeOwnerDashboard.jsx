@@ -4,10 +4,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import ProviderCard from '../components/ProviderCard';
 import BookingModal from '../components/BookingModal';
-import { Heart, Compass } from 'lucide-react';
+import { Heart, Compass, Sparkles } from 'lucide-react';
 
 const HomeOwnerDashboard = () => {
-  const { user, token, loading: authLoading } = useContext(AuthContext);
+  const { user, token, refreshProfile, loading: authLoading } = useContext(AuthContext);
   const navigate = useNavigate();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +20,8 @@ const HomeOwnerDashboard = () => {
       navigate('/');
       return;
     }
+
+    if (refreshProfile) refreshProfile();
 
     const fetchFavorites = async () => {
       try {
@@ -68,8 +70,24 @@ const HomeOwnerDashboard = () => {
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-50 border border-pink-200 text-pink-600 text-xs font-black uppercase tracking-wider mb-3">
             <Heart className="w-4 h-4 text-pink-500" /> Saved Favorites
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-display">My Favorite Providers</h1>
-          <p className="mt-2 text-slate-600 text-sm">Save providers you trust and rebook them quickly whenever you need them.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-display">My Favorite Providers</h1>
+              <p className="mt-2 text-slate-600 text-sm">Save providers you trust and rebook them quickly whenever you need them.</p>
+            </div>
+            
+            {/* Reward Points Badge */}
+            <div className="bg-gradient-to-br from-pink-50 to-purple-50 border border-pink-200 rounded-2xl p-4 flex items-center gap-4 shadow-sm min-w-[200px]">
+              <div className="p-3 bg-white rounded-xl shadow-sm text-pink-500">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Reward Points</p>
+                <p className="text-2xl font-black text-slate-900 leading-tight">{user?.rewardPoints || 0}</p>
+                <p className="text-[11px] text-pink-600 font-bold mt-0.5">Worth ৳{(user?.rewardPoints || 0) * 3}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {favorites.length === 0 ? (

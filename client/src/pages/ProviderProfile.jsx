@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Star, MapPin, ArrowLeft, ShieldCheck, Heart, Clock, Briefcase, Calendar } from 'lucide-react';
+import { Star, MapPin, ArrowLeft, ShieldCheck, Heart, Clock, Briefcase, Calendar, MessageCircle } from 'lucide-react';
 import BookingModal from '../components/BookingModal';
 import { AuthContext } from '../context/AuthContext';
 
@@ -210,8 +210,30 @@ const ProviderProfile = () => {
                   <Heart className={`w-4 h-4 ${isFavorite ? 'fill-pink-500 text-pink-500' : 'text-slate-400'}`} />
                   {isFavorite ? 'Saved' : 'Save Favorite'}
                 </button>
-                
-                <button 
+
+                {user?.role !== 'provider' && user?.role !== 'admin' && (
+                  <button
+                    onClick={() => {
+                      if (!user) {
+                        setIsLoginModalOpen(true);
+                        return;
+                      }
+                      navigate('/messages', {
+                        state: {
+                          contactId: provider.userId,
+                          contactName: provider.name,
+                          contactRole: 'provider'
+                        }
+                      });
+                    }}
+                    className="rounded-2xl border px-4 py-3 text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer border-purple-200 bg-purple-50 text-purple-700 hover:border-purple-300"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Message
+                  </button>
+                )}
+
+                <button
                   onClick={() => {
                     if (!user) {
                       setIsLoginModalOpen(true);

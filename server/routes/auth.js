@@ -37,7 +37,7 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     // Create JWT
-    const payload = { id: user._id, role: user.role, name: user.name, email: user.email };
+    const payload = { id: user._id, role: user.role, name: user.name, email: user.email, rewardPoints: user.rewardPoints || 0 };
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
 
     res.status(201).json({ token, user: payload });
@@ -78,7 +78,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Create JWT
-    const payload = { id: user._id, role: user.role, name: user.name, email: user.email };
+    const payload = { id: user._id, role: user.role, name: user.name, email: user.email, rewardPoints: user.rewardPoints || 0 };
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
 
     res.json({ token, user: payload });
@@ -221,6 +221,26 @@ router.delete('/favorites/:providerId', auth, async (req, res) => {
   } catch (error) {
     console.error('Error removing favorite:', error);
     res.status(500).json({ message: 'Server error removing favorite' });
+  }
+});
+
+// Get current user profile
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({
+      id: user._id,
+      role: user.role,
+      name: user.name,
+      email: user.email,
+      rewardPoints: user.rewardPoints || 0
+    });
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Server error fetching user profile' });
   }
 });
 

@@ -375,9 +375,75 @@ const sendJobCompletionNotification = async ({ booking, provider, providerUser }
   }
 };
 
+// -------------------------------------------------------------
+// 5. RESCHEDULE NOTIFICATIONS (Sent to Homeowner & Provider)
+// -------------------------------------------------------------
+const sendRescheduleNotification = async ({ booking, provider, providerUser, oldDate, oldTime, initiatedBy }) => {
+  const transporter = createTransporter();
+  const from = getFromAddress();
+  const appUrl = getAppUrl();
+  const providerEmail = providerUser?.email;
+  const initiatorLabel = initiatedBy === 'provider' ? provider.name : booking.userName;
+
+  // Email to Provider — always sent, so they can update their schedule
+  if (providerEmail) {
+    const providerHtml = wrapHtmlBody(
+      'Booking Rescheduled',
+      `
+        <p>Hello <strong>${provider.name}</strong>,</p>
+        <p><strong>${initiatorLabel}</strong> has rescheduled the following booking.</p>
+
+        <div class="details-card">
+          <div class="details-row"><span class="label">Client:</span> <span class="value">${booking.userName}</span></div>
+          <div class="details-row"><span class="label">Previous Slot:</span> <span class="value">${oldDate} at ${oldTime}</span></div>
+          <div class="details-row"><span class="label">New Slot:</span> <span class="value">${booking.date} at ${booking.time}</span></div>
+          <div class="details-row"><span class="label">Location:</span> <span class="value">${booking.userAddress}</span></div>
+          <div class="details-row"><span class="label">Status:</span> <span class="badge badge-accepted">${booking.status.toUpperCase()}</span></div>
+        </div>
+
+        <p>Please update your schedule accordingly.</p>
+      `,
+      `<a href="${appUrl}/provider/dashboard" class="btn">View Job Details</a>`
+    );
+
+    await transporter.sendMail({
+      from,
+      to: providerEmail,
+      subject: `[FIXNEST] Booking Rescheduled: ${booking.userName} (${booking.date})`,
+      html: providerHtml
+    });
+  }
+
+  // Email to Homeowner
+  const homeownerHtml = wrapHtmlBody(
+    'Your Booking Has Been Rescheduled',
+    `
+      <p>Hello <strong>${booking.userName}</strong>,</p>
+      <p><strong>${initiatorLabel}</strong> has rescheduled your service booking.</p>
+
+      <div class="details-card">
+        <div class="details-row"><span class="label">Provider:</span> <span class="value">${provider.name}</span></div>
+        <div class="details-row"><span class="label">Previous Slot:</span> <span class="value">${oldDate} at ${oldTime}</span></div>
+        <div class="details-row"><span class="label">New Slot:</span> <span class="value">${booking.date} at ${booking.time}</span></div>
+      </div>
+
+      <p>If this new time doesn't work for you, you can reschedule again from your bookings page.</p>
+    `,
+    `<a href="${appUrl}/my-bookings" class="btn">View Booking Details</a>`
+  );
+
+  await transporter.sendMail({
+    from,
+    to: booking.userEmail,
+    subject: `[FIXNEST] Booking Rescheduled: ${provider.serviceType} with ${provider.name}`,
+    html: homeownerHtml
+  });
+};
+
 module.exports = {
   sendBookingRequestConfirmation,
   sendBookingStatusAlert,
   sendJobCompletionReminder,
-  sendJobCompletionNotification
+  sendJobCompletionNotification,
+  sendRescheduleNotification
 };

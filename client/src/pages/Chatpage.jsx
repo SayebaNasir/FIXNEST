@@ -128,9 +128,6 @@ const ChatPage = () => {
       );
   };
 
-  // Only shows conversations that have actually started — not every provider/
-  // homeowner in the system. Starting a brand-new conversation happens via the
-  // "Message" button on a provider's profile (see the deep-link handling below).
   const fetchContacts = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/messages/conversations`, {
@@ -146,8 +143,7 @@ const ChatPage = () => {
         unread: c.unread || false,
       }));
 
-      // Deep-linked here from a provider profile's "Message" button: make sure
-      // that contact shows up (and gets opened) even before any message exists.
+      // Deep-linked here from a provider profile's "Message" button
       const target = location.state;
       if (target?.contactId) {
         const existing = list.find(
@@ -221,7 +217,7 @@ const ChatPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }

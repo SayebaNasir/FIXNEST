@@ -21,10 +21,6 @@ const MyBookings = () => {
   const [feedback, setFeedback] = useState(null); // { bookingId, message, feeCharged, feeWaived }
 
   useEffect(() => {
-    // if (!user) {
-    //   navigate('/');
-    //   return;
-    // }
     fetchBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, token, navigate]);

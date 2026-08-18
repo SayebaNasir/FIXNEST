@@ -82,6 +82,28 @@ export const AuthProvider = ({ children }) => {
     window.location.replace('/');
   };
 
+  // Merges fresh fields (e.g. an updated role after a subscription payment) into
+  // the cached user object, without requiring a full re-login.
+  const updateUser = (patch) => {
+    setUser((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const refreshProfile = async () => {
+    try {
+      if (!token) return;
+      const res = await axios.get('http://localhost:5001/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      updateUser(res.data);
+    } catch (error) {
+      console.error('Failed to refresh profile:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
   user,
@@ -90,6 +112,8 @@ export const AuthProvider = ({ children }) => {
   register,
   logout,
   clearAuthState,
+  updateUser,
+  refreshProfile,
   loading,
   isLoginModalOpen,
   setIsLoginModalOpen
