@@ -6,9 +6,12 @@ const Provider = require('../models/Provider');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
-const store_id = process.env.SSLCOMMERZ_STORE_ID;
-const store_passwd = process.env.SSLCOMMERZ_STORE_PASSWORD;
-const is_live = process.env.SSLCOMMERZ_IS_LIVE === 'true';
+const getSslcz = () => {
+  const store_id = process.env.SSLCOMMERZ_STORE_ID || 'fixne6a81e744430d2';
+  const store_passwd = process.env.SSLCOMMERZ_STORE_PASSWORD || 'fixne6a81e744430d2@ssl';
+  const is_live = process.env.SSLCOMMERZ_IS_LIVE === 'true';
+  return new SSLCommerzPayment(store_id, store_passwd, is_live);
+};
 
 const getAppUrl = () => process.env.APP_URL || 'http://localhost:5173';
 const getApiUrl = () => process.env.API_URL || 'http://localhost:5001';
@@ -89,7 +92,7 @@ router.post('/init/:bookingId', auth, async (req, res) => {
       )
     };
 
-    const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+    const sslcz = getSslcz();
     const apiResponse = await sslcz.init(data);
 
     if (!apiResponse?.GatewayPageURL) {
@@ -146,7 +149,7 @@ router.post('/init-cancellation-fee/:bookingId', auth, async (req, res) => {
       )
     };
 
-    const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+    const sslcz = getSslcz();
     const apiResponse = await sslcz.init(data);
 
     if (!apiResponse?.GatewayPageURL) {
@@ -200,7 +203,7 @@ router.post('/init-subscription', auth, async (req, res) => {
       )
     };
 
-    const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+    const sslcz = getSslcz();
     const apiResponse = await sslcz.init(data);
 
     if (!apiResponse?.GatewayPageURL) {
@@ -298,7 +301,7 @@ router.post('/success', async (req, res) => {
     const resolved = await resolvePaymentTarget(tran_id);
 
     if (resolved.target && val_id) {
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      const sslcz = getSslcz();
       const validation = await sslcz.validate({ val_id });
 
       if (validation?.status === 'VALID' || validation?.status === 'VALIDATED') {
@@ -357,7 +360,7 @@ router.post('/ipn', async (req, res) => {
         : resolved.target?.paymentStatus === 'paid';
 
     if (resolved.target && val_id && !alreadyPaid) {
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      const sslcz = getSslcz();
       const validation = await sslcz.validate({ val_id });
       if (validation?.status === 'VALID' || validation?.status === 'VALIDATED') {
         await markPaid(resolved);

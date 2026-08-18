@@ -128,9 +128,6 @@ const ChatPage = () => {
       );
   };
 
-  // Only shows conversations that have actually started — not every provider/
-  // homeowner in the system. Starting a brand-new conversation happens via the
-  // "Message" button on a provider's profile (see the deep-link handling below).
   const fetchContacts = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/messages/conversations`, {
@@ -146,8 +143,7 @@ const ChatPage = () => {
         unread: c.unread || false,
       }));
 
-      // Deep-linked here from a provider profile's "Message" button: make sure
-      // that contact shows up (and gets opened) even before any message exists.
+      // Deep-linked here from a provider profile's "Message" button
       const target = location.state;
       if (target?.contactId) {
         const existing = list.find(
@@ -221,29 +217,30 @@ const ChatPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-slate-50">
+    <div className="min-h-screen py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-8 border-b border-slate-100 bg-primary-900 text-white">
-            <h1 className="text-3xl font-extrabold tracking-tight">Messages</h1>
-            <p className="mt-2 text-primary-100">
+        <div className="bg-white rounded-3xl shadow-lg border border-purple-100 overflow-hidden">
+          {/* Header */}
+          <div className="p-6 sm:p-8 border-b border-purple-200/60 bg-gradient-to-r from-purple-700 via-purple-800 to-pink-600 text-white">
+            <h1 className="text-3xl font-black tracking-tight font-display">Messages</h1>
+            <p className="mt-1 text-purple-100 font-bold text-sm">
               {user?.role === "provider"
                 ? "Chat with homeowners"
                 : "Chat with service providers"}
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row h-[600px]">
+          <div className="flex flex-col md:flex-row h-[620px]">
             {/* Contact list */}
-            <div className="w-full md:w-1/3 border-r border-slate-100 overflow-y-auto">
+            <div className="w-full md:w-1/3 border-r border-slate-200 overflow-y-auto bg-slate-50/50">
               {contacts.length === 0 && (
-                <div className="p-6 text-center text-slate-500 text-sm">
+                <div className="p-6 text-center text-slate-700 font-bold text-sm">
                   {user?.role === "provider"
                     ? "No conversations yet. They'll show up here once a homeowner messages you."
                     : "No conversations yet. Message a provider from their profile to start one."}
@@ -253,30 +250,32 @@ const ChatPage = () => {
                 <button
                   key={c.partnerId}
                   onClick={() => openConversation(c)}
-                  className={`w-full text-left p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors ${
+                  className={`w-full text-left p-4 border-b border-slate-200/80 hover:bg-purple-50/70 transition-colors ${
                     activeContact?.partnerId === c.partnerId
-                      ? "bg-primary-50"
+                      ? "bg-purple-100/80 border-l-4 border-l-purple-600"
                       : ""
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <span
-                        className={`w-2 h-2 rounded-full ${
+                        className={`w-2.5 h-2.5 rounded-full ${
                           onlineIds.has(String(c.partnerId))
-                            ? "bg-green-500"
-                            : "bg-slate-300"
+                            ? "bg-emerald-500 ring-2 ring-white"
+                            : "bg-slate-400"
                         }`}
                       ></span>
-                      <p className="font-bold text-slate-900 text-sm">
+                      <p className="font-extrabold text-slate-900 text-base">
                         {c.partnerName}
                       </p>
                     </div>
                     {c.unread && (
-                      <span className="w-2 h-2 rounded-full bg-primary-600"></span>
+                      <span className="px-2 py-0.5 bg-pink-500 text-white text-[10px] font-black rounded-full uppercase tracking-wider">
+                        New
+                      </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 truncate mt-1">
+                  <p className="text-xs font-bold text-slate-700 truncate mt-1 pl-5">
                     {c.lastMessage || "No messages yet"}
                   </p>
                 </button>
@@ -284,23 +283,32 @@ const ChatPage = () => {
             </div>
 
             {/* Chat window */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col bg-white">
               {!activeContact ? (
-                <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
+                <div className="flex-1 flex items-center justify-center text-slate-700 font-extrabold text-base bg-slate-50/30">
                   Select a conversation to start chatting.
                 </div>
               ) : (
                 <>
-                  <div className="p-4 border-b border-slate-100 flex items-center gap-2">
-                    <p className="font-bold text-slate-900">
-                      {activeContact.partnerName}
-                    </p>
-                    <span className="text-xs text-slate-400 capitalize">
-                      ({activeContact.partnerRole})
-                    </span>
+                  <div className="p-4 sm:px-6 border-b border-slate-200 flex items-center justify-between bg-white shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`w-3 h-3 rounded-full ${
+                          onlineIds.has(String(activeContact.partnerId))
+                            ? "bg-emerald-500 ring-2 ring-emerald-100"
+                            : "bg-slate-300"
+                        }`}
+                      ></span>
+                      <p className="font-black text-slate-900 text-lg">
+                        {activeContact.partnerName}
+                      </p>
+                      <span className="text-xs font-extrabold text-purple-900 bg-purple-100 border border-purple-200 px-3 py-0.5 rounded-full capitalize">
+                        {activeContact.partnerRole}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 bg-slate-100/60">
                     {messages.map((m) => {
                       const isMine =
                         String(m.sender) === String(user.id) ||
@@ -311,10 +319,10 @@ const ChatPage = () => {
                           className={`flex ${isMine ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm shadow-sm ${
+                            className={`max-w-[75%] sm:max-w-[65%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-xs ${
                               isMine
-                                ? "bg-primary-600 text-white rounded-br-sm"
-                                : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm"
+                                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-br-none"
+                                : "bg-white text-slate-900 font-extrabold border-2 border-slate-200/90 rounded-bl-none shadow-sm"
                             }`}
                           >
                             {m.text}
@@ -323,14 +331,16 @@ const ChatPage = () => {
                       );
                     })}
                     {typingFrom === String(activeContact.partnerId) && (
-                      <p className="text-xs text-slate-400 italic">typing...</p>
+                      <p className="text-xs text-purple-800 font-extrabold italic bg-purple-50 inline-block px-3 py-1 rounded-full border border-purple-200">
+                        typing...
+                      </p>
                     )}
                     <div ref={scrollRef}></div>
                   </div>
 
                   <form
                     onSubmit={handleSend}
-                    className="p-4 border-t border-slate-100 flex gap-2"
+                    className="p-4 border-t border-slate-200 flex gap-3 bg-white"
                   >
                     <input
                       type="text"
@@ -340,12 +350,12 @@ const ChatPage = () => {
                         handleTyping();
                       }}
                       placeholder="Type a message..."
-                      className="flex-1 rounded-xl border-slate-300 border p-3 focus:ring-primary-500 focus:border-primary-500 shadow-sm text-sm"
+                      className="flex-1 rounded-2xl border-2 border-slate-300 p-3.5 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-xs text-sm font-extrabold text-slate-900 placeholder:text-slate-500 placeholder:font-semibold bg-white"
                     />
                     <button
                       type="submit"
                       disabled={!draft.trim()}
-                      className="px-6 rounded-xl text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 transition-all shadow-sm active:scale-[0.98]"
+                      className="px-7 rounded-2xl text-sm font-black text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-40 transition-all shadow-md active:scale-[0.98]"
                     >
                       Send
                     </button>

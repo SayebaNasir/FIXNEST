@@ -167,7 +167,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     formData.time !== '';
 
   const basePrice = provider.pricePerHour || 0;
-  const discountedPrice = Math.round(basePrice * 0.9);
+  const discountedPrice = offPeakInfo.isOffPeak ? Math.round(basePrice * 0.9) : basePrice;
 
   const baseBookingAmount = isPremium ? discountedAmount : BOOKING_AMOUNT;
   const discountFromPoints = formData.redeemPoints ? Math.min(pointsValue, baseBookingAmount) : 0;

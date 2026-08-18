@@ -312,9 +312,25 @@ router.post('/', auth, async (req, res) => {
       return res.status(409).json({ message: 'This time slot is already booked.' });
     }
 
-    // Check off-peak discount eligibility (< 2 existing bookings in this slot)
-    const slotBookingCount = await Booking.countDocuments({ time: requestedSlot });
-    const isOffPeak = slotBookingCount < 2;
+    // Helper to normalize slot hour string (e.g., "15:00 - 16:00" -> "15:00")
+    const extractSlotHour = (slot) => {
+      if (typeof slot !== 'string') return '';
+      const match = slot.match(/(\d{1,2}):(\d{2})/);
+      if (!match) return slot.trim();
+      return `${match[1].padStart(2, '0')}:${match[2]}`;
+    };
+
+    const hourKey = extractSlotHour(requestedSlot);
+
+    // Count active bookings matching this slot hour
+    const activeBookings = await Booking.find({
+      status: { $in: ['pending', 'accepted', 'in-progress'] }
+    });
+    const slotBookingCount = activeBookings.filter(
+      (b) => extractSlotHour(b.time) === hourKey
+    ).length;
+
+    const isOffPeak = slotBookingCount < 3;
     const basePrice = provider.pricePerHour || 0;
     const discountApplied = isOffPeak ? 10 : 0;
     let finalPrice = isOffPeak ? Math.round(basePrice * 0.9) : basePrice;
@@ -392,7 +408,10 @@ router.post('/', auth, async (req, res) => {
 // -----------------------------------------------
 router.get('/my', auth, async (req, res) => {
   try {
-    const bookings = await Booking.find({ userId: req.user.id })
+    const bookings = await Booking.find({ 
+      userId: req.user.id,
+      status: { $ne: 'cancelled' }
+    })
       .populate('providerId', 'name serviceType availability')
       .sort({ createdAt: -1 });
 

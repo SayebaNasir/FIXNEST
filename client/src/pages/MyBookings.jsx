@@ -21,10 +21,6 @@ const MyBookings = () => {
   const [feedback, setFeedback] = useState(null); // { bookingId, message, feeCharged, feeWaived }
 
   useEffect(() => {
-    // if (!user) {
-    //   navigate('/');
-    //   return;
-    // }
     fetchBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, token, navigate]);
@@ -34,7 +30,7 @@ const MyBookings = () => {
       const res = await axios.get('http://localhost:5001/api/bookings', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const mine = (res.data || []).filter((b) => String(b.userId) === String(user._id));
+      const mine = (res.data || []).filter((b) => String(b.userId) === String(user._id) && b.status !== 'cancelled');
       setBookings(mine);
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -73,7 +69,7 @@ const MyBookings = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setFeedback({ bookingId: booking._id, ...res.data });
-      setBookings((prev) => prev.map((b) => (b._id === booking._id ? res.data.booking : b)));
+      setBookings((prev) => prev.filter((b) => b._id !== booking._id));
     } catch (error) {
       console.error('Error cancelling booking:', error);
       setFeedback({

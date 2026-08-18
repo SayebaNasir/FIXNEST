@@ -103,7 +103,8 @@ const MyRequests = () => {
         axios.get(`${API_URL}/api/bookings/my`, { params: { email: queryEmail }, ...authHeaders }),
         axios.get(`${API_URL}/api/bookings/notifications`, { params: { email: queryEmail }, ...authHeaders })
       ]);
-      setBookings(bookingsRes.data || []);
+      const activeBookings = (bookingsRes.data || []).filter((b) => b.status !== 'cancelled');
+      setBookings(activeBookings);
       setNotifications(notifRes.data || []);
 
       // Check which completed bookings are already reviewed by homeowner
@@ -163,9 +164,7 @@ const MyRequests = () => {
         { email: user?.email?.trim().toLowerCase() },
         authHeaders
       );
-      setBookings((prev) =>
-        prev.map((b) => (b._id === booking._id ? res.data.booking : b)),
-      );
+      setBookings((prev) => prev.filter((b) => b._id !== booking._id));
       setCancelFeedback((prev) => ({ ...prev, [booking._id]: res.data }));
 
       // A real late-cancellation fee is owed (not waived) — send them to pay it.
@@ -347,11 +346,19 @@ const MyRequests = () => {
                         </div>
                       </div>
 
-                      {/* Off-peak pricing tag */}
-                      {booking.isOffPeak && (
+                      {/* Pricing Tag */}
+                      {booking.isOffPeak ? (
                         <div className="mt-3 p-3 rounded-2xl bg-pink-50 border border-pink-200 text-pink-700 text-xs font-bold flex items-center justify-between">
                           <span className="flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-pink-500" /> 10% Off-Peak Special Discount Applied!</span>
-                          <span className="text-slate-900 font-black">৳{booking.finalPrice || Math.round((booking.originalPrice || 500) * 0.9)}</span>
+                          <span className="text-slate-900 font-black">
+                            {booking.originalPrice && <strike className="text-slate-400 mr-1.5 font-normal">৳{booking.originalPrice}</strike>}
+                            ৳{booking.finalPrice || Math.round((booking.price || 500) * 0.9)}/hr
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="mt-3 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-between">
+                          <span className="text-slate-600 font-semibold">Service Rate:</span>
+                          <span className="text-slate-900 font-black">৳{booking.finalPrice || booking.price || 500}/hr</span>
                         </div>
                       )}
 

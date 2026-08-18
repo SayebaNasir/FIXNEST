@@ -26,9 +26,24 @@ router.get('/offpeak-heatmap', async (req, res) => {
   try {
     const { serviceType, day, date } = req.query;
 
-    // 1. Fetch active providers
+    // 1. Fetch active providers (excluding logged-in provider if user is a provider)
     const providerQuery = { verificationStatus: { $ne: 'rejected' } };
     if (serviceType) providerQuery.serviceType = serviceType;
+
+    const authHeader = req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fixnest_secret_key_2026');
+        if (decoded?.id && decoded?.role === 'provider') {
+          providerQuery.userId = { $ne: decoded.id };
+        }
+      } catch (e) {
+        // Ignore invalid token
+      }
+    }
+
     const providers = await Provider.find(providerQuery);
 
     // 2. Fetch existing active bookings to check booked slots
@@ -94,25 +109,25 @@ router.get('/offpeak-heatmap', async (req, res) => {
       let discountPercentage = 0;
       let discountLabel = 'Unavailable';
 
-      if (!hasProvider) {
-        demandLevel = 'no_provider';
-        isOffPeak = false;
-        discountPercentage = 0;
-        discountLabel = 'No Provider Available';
-        totalUnavailableSlots++;
-      } else if (jobCount >= 4) {
+      if (jobCount >= 5) {
         demandLevel = 'high';
         isOffPeak = false;
         discountPercentage = 0;
         discountLabel = 'High Demand';
         totalPeakSlots++;
-      } else if (jobCount >= 2) {
+      } else if (!hasProvider) {
+        demandLevel = 'no_provider';
+        isOffPeak = false;
+        discountPercentage = 0;
+        discountLabel = 'No Provider Available';
+        totalUnavailableSlots++;
+      } else if (jobCount >= 3) {
         demandLevel = 'medium';
         isOffPeak = false;
         discountPercentage = 0;
         discountLabel = 'Standard Rate';
       } else {
-        // Low demand time slot with UNBOOKED available provider => 10% OFF!
+        // Low demand (< 3 jobs) time slot with UNBOOKED available provider => 10% OFF!
         demandLevel = 'low';
         isOffPeak = true;
         discountPercentage = 10;
@@ -183,7 +198,7 @@ router.get('/offpeak-providers', async (req, res) => {
       try {
         const jwt = require('jsonwebtoken');
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fixnest_secret_key_2026');
         if (decoded?.id && decoded?.role === 'provider') {
           providerQuery.userId = { $ne: decoded.id };
         }
@@ -201,10 +216,12 @@ router.get('/offpeak-providers', async (req, res) => {
     if (date) bookingQuery.date = date;
     const existingBookings = await Booking.find(bookingQuery);
 
+    const hourBookings = existingBookings.filter(b => extractSlotHour(b.time) === hourKey);
+    const jobCount = hourBookings.length;
+    const isOffPeakSlot = jobCount < 3;
+
     const bookedProviderIds = new Set(
-      existingBookings
-        .filter(b => extractSlotHour(b.time) === hourKey)
-        .map(b => b.providerId.toString())
+      hourBookings.map(b => b.providerId.toString())
     );
 
     // 3. Filter providers who offer this slot AND are NOT booked
@@ -218,20 +235,22 @@ router.get('/offpeak-providers', async (req, res) => {
       });
     }).map(p => {
       const originalPrice = p.pricePerHour || 0;
-      const discountedPrice = Math.round(originalPrice * 0.9);
+      const discountedPrice = isOffPeakSlot ? Math.round(originalPrice * 0.9) : originalPrice;
+      const discountApplied = isOffPeakSlot ? 10 : 0;
       return {
         ...p,
         originalPrice,
         discountedPrice,
-        discountApplied: 10,
-        isOffPeak: true
+        discountApplied,
+        isOffPeak: isOffPeakSlot
       };
     });
 
     res.json({
       timeSlot: hourKey,
       totalAvailable: eligibleProviders.length,
-      discountPercentage: 10,
+      isOffPeak: isOffPeakSlot,
+      discountPercentage: isOffPeakSlot ? 10 : 0,
       providers: eligibleProviders
     });
 
