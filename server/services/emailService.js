@@ -7,8 +7,11 @@ const createTransporter = () => {
 
   if (user && pass) {
     return nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass }
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: { user, pass },
+      family: 4
     });
   }
 
@@ -94,37 +97,42 @@ const sendBookingRequestConfirmation = async ({ booking, provider, providerUser 
   const from = getFromAddress();
   const appUrl = getAppUrl();
 
-  const providerEmail = providerUser?.email;
+  const providerEmail = providerUser?.email || provider?.email;
+  const promises = [];
 
   // Email to Homeowner
-  const homeownerHtml = wrapHtmlBody(
-    'Booking Request Confirmation',
-    `
-      <p>Hello <strong>${booking.userName}</strong>,</p>
-      <p>Thank you for submitting a service request on FIXNEST! Your request has been successfully dispatched to the provider.</p>
-      
-      <div class="details-card">
-        <div class="details-row"><span class="label">Provider:</span> <span class="value">${provider.name}</span></div>
-        <div class="details-row"><span class="label">Service:</span> <span class="value">${provider.serviceType}</span></div>
-        <div class="details-row"><span class="label">Date:</span> <span class="value">${booking.date}</span></div>
-        <div class="details-row"><span class="label">Time Slot:</span> <span class="value">${booking.time}</span></div>
-        <div class="details-row"><span class="label">Address:</span> <span class="value">${booking.userAddress}</span></div>
-        <div class="details-row"><span class="label">Rate:</span> <span class="value">${booking.isOffPeak ? `<strike style="color:#94a3b8; margin-right:4px;">৳${booking.originalPrice || booking.price}/hr</strike> <span style="color:#16a34a; font-weight:bold;">৳${booking.finalPrice || booking.price}/hr (10% Off-Peak Discount)</span>` : `৳${booking.price}/hr`}</span></div>
-        <div class="details-row"><span class="label">Status:</span> <span class="badge badge-pending">PENDING</span></div>
-      </div>
+  if (booking?.userEmail) {
+    const homeownerHtml = wrapHtmlBody(
+      'Booking Request Confirmation',
+      `
+        <p>Hello <strong>${booking.userName}</strong>,</p>
+        <p>Thank you for submitting a service request on FIXNEST! Your request has been successfully dispatched to the provider.</p>
+        
+        <div class="details-card">
+          <div class="details-row"><span class="label">Provider:</span> <span class="value">${provider.name}</span></div>
+          <div class="details-row"><span class="label">Service:</span> <span class="value">${provider.serviceType}</span></div>
+          <div class="details-row"><span class="label">Date:</span> <span class="value">${booking.date}</span></div>
+          <div class="details-row"><span class="label">Time Slot:</span> <span class="value">${booking.time}</span></div>
+          <div class="details-row"><span class="label">Address:</span> <span class="value">${booking.userAddress}</span></div>
+          <div class="details-row"><span class="label">Rate:</span> <span class="value">${booking.isOffPeak ? `<strike style="color:#94a3b8; margin-right:4px;">৳${booking.originalPrice || booking.price}/hr</strike> <span style="color:#16a34a; font-weight:bold;">৳${booking.finalPrice || booking.price}/hr (10% Off-Peak Discount)</span>` : `৳${booking.price}/hr`}</span></div>
+          <div class="details-row"><span class="label">Status:</span> <span class="badge badge-pending">PENDING</span></div>
+        </div>
 
-      <p><strong>Description:</strong> ${booking.description}</p>
-      <p>The provider will review your request and accept or decline shortly. You will receive an email update once they respond.</p>
-    `,
-    `<a href="${appUrl}/my-bookings" class="btn">View My Bookings</a>`
-  );
+        <p><strong>Description:</strong> ${booking.description}</p>
+        <p>The provider will review your request and accept or decline shortly. You will receive an email update once they respond.</p>
+      `,
+      `<a href="${appUrl}/my-bookings" class="btn">View My Bookings</a>`
+    );
 
-  await transporter.sendMail({
-    from,
-    to: booking.userEmail,
-    subject: `[FIXNEST] Request Submitted: ${provider.serviceType} with ${provider.name}`,
-    html: homeownerHtml
-  });
+    promises.push(
+      transporter.sendMail({
+        from,
+        to: booking.userEmail,
+        subject: `[FIXNEST] Request Submitted: ${provider.serviceType} with ${provider.name}`,
+        html: homeownerHtml
+      }).catch((err) => console.error(`Error sending email to homeowner (${booking.userEmail}):`, err))
+    );
+  }
 
   // Email to Provider (if provider email exists)
   if (providerEmail) {
@@ -140,23 +148,27 @@ const sendBookingRequestConfirmation = async ({ booking, provider, providerUser 
           <div class="details-row"><span class="label">Date:</span> <span class="value">${booking.date}</span></div>
           <div class="details-row"><span class="label">Time Slot:</span> <span class="value">${booking.time}</span></div>
           <div class="details-row"><span class="label">Service Location:</span> <span class="value">${booking.userAddress}</span></div>
-          <div class="details-row"><span class="label">Estimated Rate:</span> <span class="value">$${booking.price}/hr</span></div>
+          <div class="details-row"><span class="label">Estimated Rate:</span> <span class="value">৳${booking.price}/hr</span></div>
           <div class="details-row"><span class="label">Status:</span> <span class="badge badge-pending">ACTION REQUIRED</span></div>
         </div>
 
         <p><strong>Job Details / Description:</strong> ${booking.description}</p>
         <p>Please log in to your provider dashboard to accept or reject this request.</p>
       `,
-      `<a href="${appUrl}/provider/dashboard" class="btn">Manage Requests</a>`
+      `<a href="${appUrl}/dashboard" class="btn">Manage Requests</a>`
     );
 
-    await transporter.sendMail({
-      from,
-      to: providerEmail,
-      subject: `[FIXNEST] New Job Request from ${booking.userName} (${booking.date})`,
-      html: providerHtml
-    });
+    promises.push(
+      transporter.sendMail({
+        from,
+        to: providerEmail,
+        subject: `[FIXNEST] New Job Request from ${booking.userName} (${booking.date})`,
+        html: providerHtml
+      }).catch((err) => console.error(`Error sending email to provider (${providerEmail}):`, err))
+    );
   }
+
+  await Promise.allSettled(promises);
 };
 
 // -------------------------------------------------------------

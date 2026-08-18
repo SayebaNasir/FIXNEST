@@ -1,17 +1,20 @@
+import CancelConfirmModal from "../components/CancelModal";
+import RescheduleModal from "../components/RescheduleModal";
 import React, { useState, useCallback, useEffect, useContext } from 'react';
 import axios from 'axios';
 import ReviewModal from '../components/ReviewModal';
 import { AuthContext } from '../context/AuthContext';
 import { ClipboardList, Bell, Clock, CheckCircle2, XCircle, Settings, Sparkles, Star, MapPin, Calendar } from 'lucide-react';
 
-const API_URL = 'http://localhost:5001';
+const API_URL = "http://localhost:5001";
 
 const STATUS_CONFIG = {
-  pending:       { label: 'Pending Approval', color: 'bg-amber-50 text-amber-700 border-amber-200',    icon: Clock },
-  accepted:      { label: 'Request Accepted', color: 'bg-sky-50 text-sky-700 border-sky-200',          icon: CheckCircle2 },
-  rejected:      { label: 'Declined',         color: 'bg-rose-50 text-rose-700 border-rose-200',       icon: XCircle },
-  'in-progress': { label: 'In Progress',      color: 'bg-purple-50 text-purple-700 border-purple-200',  icon: Settings },
-  completed:     { label: 'Job Completed',    color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Sparkles },
+  pending:       { label: 'Pending Approval', color: 'bg-amber-50 text-amber-700 border-amber-200',      icon: Clock },
+  accepted:      { label: 'Request Accepted', color: 'bg-sky-50 text-sky-700 border-sky-200',            icon: CheckCircle2 },
+  rejected:      { label: 'Declined',         color: 'bg-rose-50 text-rose-700 border-rose-200',         icon: XCircle },
+  'in-progress': { label: 'In Progress',      color: 'bg-purple-50 text-purple-700 border-purple-200',   icon: Settings },
+  completed:     { label: 'Job Completed',    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',icon: Sparkles },
+  cancelled:     { label: 'Cancelled',        color: 'bg-slate-100 text-slate-500 border-slate-200',     icon: XCircle },
 };
 
 const StatusBadge = ({ status }) => {
@@ -26,18 +29,63 @@ const StatusBadge = ({ status }) => {
 };
 
 const formatDate = (dateStr) =>
-  new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  new Date(dateStr).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+// Parses a stored date ('YYYY-MM-DD') + time string (e.g. '10:00 AM') into a Date,
+// so we can tell whether a booking is within the 24-hour cancellation window.
+const parseBookingDateTime = (dateStr, timeStr) => {
+  const match = String(timeStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  let hours = 0;
+  let minutes = 0;
+  if (match) {
+    hours = parseInt(match[1], 10);
+    minutes = parseInt(match[2], 10);
+    const meridiem = match[3];
+    if (meridiem) {
+      const isPM = meridiem.toUpperCase() === "PM";
+      if (isPM && hours !== 12) hours += 12;
+      if (!isPM && hours === 12) hours = 0;
+    }
+  }
+  const [year, month, day] = String(dateStr).split("-").map(Number);
+  return new Date(year, month - 1, day, hours, minutes);
+};
+
+const isWithin24Hours = (booking) => {
+  const dt = parseBookingDateTime(booking.date, booking.time);
+  return (dt - new Date()) / (1000 * 60 * 60) < 24;
+};
+
+const CANCELLABLE_STATUSES = ["pending", "accepted"];
+const RESCHEDULABLE_STATUSES = ["pending", "accepted", "in-progress"];
 
 const MyRequests = () => {
   const { user, token } = useContext(AuthContext);
+  const isPremium = user?.role === "premium_user";
+
   const [bookings, setBookings] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [activeView, setActiveView] = useState('requests'); // 'requests' | 'notifications'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewBookingId, setReviewBookingId] = useState(null);
   const [reviewedBookings, setReviewedBookings] = useState({});
+
+  const [cancellingId, setCancellingId] = useState(null);
+  const [cancelFeedback, setCancelFeedback] = useState({}); // { [bookingId]: { message, feeCharged, feeWaived } }
+  const [cancelModalBooking, setCancelModalBooking] = useState(null);
+
+  const [rescheduleModalBooking, setRescheduleModalBooking] = useState(null);
+  const [reschedulingId, setReschedulingId] = useState(null);
+  const [rescheduleError, setRescheduleError] = useState('');
 
   const fetchUserBookings = useCallback(async () => {
     if (!user?.email) {
@@ -55,7 +103,8 @@ const MyRequests = () => {
         axios.get(`${API_URL}/api/bookings/my`, { params: { email: queryEmail }, ...authHeaders }),
         axios.get(`${API_URL}/api/bookings/notifications`, { params: { email: queryEmail }, ...authHeaders })
       ]);
-      setBookings(bookingsRes.data || []);
+      const activeBookings = (bookingsRes.data || []).filter((b) => b.status !== 'cancelled');
+      setBookings(activeBookings);
       setNotifications(notifRes.data || []);
 
       // Check which completed bookings are already reviewed by homeowner
@@ -90,6 +139,104 @@ const MyRequests = () => {
   useEffect(() => {
     fetchUserBookings();
   }, [fetchUserBookings]);
+
+  const openCancelModal = (booking) => {
+    setCancelModalBooking(booking);
+  };
+
+  const closeCancelModal = () => {
+    if (cancellingId) return; // don't allow closing mid-request
+    setCancelModalBooking(null);
+  };
+
+  const confirmCancel = async () => {
+    const booking = cancelModalBooking;
+    if (!booking) return;
+
+    setCancellingId(booking._id);
+    setCancelFeedback((prev) => ({ ...prev, [booking._id]: null }));
+
+    const authHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
+    try {
+      const res = await axios.post(
+        `${API_URL}/api/bookings/${booking._id}/cancel`,
+        { email: user?.email?.trim().toLowerCase() },
+        authHeaders
+      );
+      setBookings((prev) => prev.filter((b) => b._id !== booking._id));
+      setCancelFeedback((prev) => ({ ...prev, [booking._id]: res.data }));
+
+      // A real late-cancellation fee is owed (not waived) — send them to pay it.
+      if (res.data.feeCharged > 0 && token) {
+        setCancelFeedback((prev) => ({
+          ...prev,
+          [booking._id]: { ...res.data, message: `${res.data.message} Redirecting to secure payment...` },
+        }));
+        const paymentRes = await axios.post(
+          `${API_URL}/api/payment/init-cancellation-fee/${booking._id}`,
+          {},
+          authHeaders
+        );
+        window.location.href = paymentRes.data.GatewayPageURL;
+        return;
+      }
+    } catch (err) {
+      console.error("Error cancelling booking:", err);
+      setCancelFeedback((prev) => ({
+        ...prev,
+        [booking._id]: {
+          message:
+            err.response?.data?.message ||
+            "Failed to cancel booking. Please try again.",
+        },
+      }));
+    } finally {
+      setCancellingId(null);
+      setCancelModalBooking(null);
+    }
+  };
+
+  const openRescheduleModal = (booking) => {
+    setRescheduleError('');
+    setRescheduleModalBooking(booking);
+  };
+
+  const closeRescheduleModal = () => {
+    if (reschedulingId) return; // don't allow closing mid-request
+    setRescheduleModalBooking(null);
+    setRescheduleError('');
+  };
+
+  const confirmReschedule = async ({ date, time }) => {
+    const booking = rescheduleModalBooking;
+    if (!booking) return;
+
+    setReschedulingId(booking._id);
+    setRescheduleError('');
+
+    const authHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
+    try {
+      const res = await axios.patch(
+        `${API_URL}/api/bookings/${booking._id}/reschedule`,
+        { date, time },
+        authHeaders
+      );
+      setBookings((prev) =>
+        prev.map((b) => (b._id === booking._id ? res.data.booking : b)),
+      );
+      setRescheduleModalBooking(null);
+    } catch (err) {
+      console.error("Error rescheduling booking:", err);
+      setRescheduleError(
+        err.response?.data?.message ||
+          "Failed to reschedule booking. Please try again.",
+      );
+    } finally {
+      setReschedulingId(null);
+    }
+  };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -200,29 +347,92 @@ const MyRequests = () => {
                       </div>
 
                       {/* Pricing Tag */}
-                      {booking.isOffPeak && (
+                      {booking.isOffPeak ? (
                         <div className="mt-3 p-3 rounded-2xl bg-pink-50 border border-pink-200 text-pink-700 text-xs font-bold flex items-center justify-between">
                           <span className="flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-pink-500" /> 10% Off-Peak Special Discount Applied!</span>
-                          <span className="text-slate-900 font-black">৳{booking.finalPrice || Math.round((booking.originalPrice || 500) * 0.9)}</span>
+                          <span className="text-slate-900 font-black">
+                            {booking.originalPrice && <strike className="text-slate-400 mr-1.5 font-normal">৳{booking.originalPrice}</strike>}
+                            ৳{booking.finalPrice || Math.round((booking.price || 500) * 0.9)}/hr
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="mt-3 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-between">
+                          <span className="text-slate-600 font-semibold">Service Rate:</span>
+                          <span className="text-slate-900 font-black">৳{booking.finalPrice || booking.price || 500}/hr</span>
                         </div>
                       )}
 
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      {/* Cancellation warning */}
+                      {CANCELLABLE_STATUSES.includes(booking.status) && isWithin24Hours(booking) && (
+                        <p className="mt-3 text-xs text-amber-600 font-medium">
+                          ⚠️ Within 24 hours of your appointment — cancelling now{" "}
+                          {isPremium
+                            ? "may use one of your monthly premium fee exemptions"
+                            : "may incur a ৳50 fee"}.
+                        </p>
+                      )}
+
+                      {/* Cancellation result feedback */}
+                      {cancelFeedback[booking._id] && (
+                        <div
+                          className={`mt-3 p-3 rounded-lg text-xs font-semibold ${
+                            cancelFeedback[booking._id].feeWaived
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : cancelFeedback[booking._id].feeCharged > 0
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : "bg-slate-50 text-slate-600 border border-slate-200"
+                          }`}
+                        >
+                          {cancelFeedback[booking._id].message}
+                        </div>
+                      )}
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs">
                         <span className="text-slate-400">Submitted: {formatDate(booking.createdAt)}</span>
-                        {booking.status === 'completed' && (
-                          reviewedBookings[booking._id] ? (
-                            <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-black rounded-xl">
-                              ✓ Reviewed
-                            </span>
-                          ) : (
+
+                        <div className="flex items-center gap-2">
+                          {RESCHEDULABLE_STATUSES.includes(booking.status) && (
                             <button
-                              onClick={() => { setReviewBookingId(booking._id); setReviewModalOpen(true); }}
-                              className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-black rounded-2xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                              onClick={() => openRescheduleModal(booking)}
+                              disabled={reschedulingId === booking._id}
+                              className="px-4 py-2 bg-purple-50 hover:bg-purple-100 disabled:bg-slate-50 disabled:text-slate-400 text-purple-700 text-xs font-black rounded-2xl transition-colors cursor-pointer"
                             >
-                              <Star className="w-3.5 h-3.5 fill-slate-950" /> Rate &amp; Review Provider
+                              {reschedulingId === booking._id ? "Rescheduling..." : "Reschedule"}
                             </button>
-                          )
-                        )}
+                          )}
+
+                          {CANCELLABLE_STATUSES.includes(booking.status) && (
+                            <button
+                              onClick={() => openCancelModal(booking)}
+                              disabled={cancellingId === booking._id}
+                              className="px-4 py-2 bg-red-50 hover:bg-red-100 disabled:bg-slate-50 disabled:text-slate-400 text-red-700 text-xs font-black rounded-2xl transition-colors cursor-pointer"
+                            >
+                              {cancellingId === booking._id ? "Cancelling..." : "Cancel Booking"}
+                            </button>
+                          )}
+
+                          {booking.status === 'completed' && (
+                            <>
+                              {booking.pointsEarned > 0 && (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-50 text-pink-600 border border-pink-200 text-xs font-black rounded-xl">
+                                  <Sparkles className="w-3.5 h-3.5 text-pink-500" /> +{booking.pointsEarned} Points Earned
+                                </span>
+                              )}
+                              {reviewedBookings[booking._id] ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-black rounded-xl">
+                                  ✓ Reviewed
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => { setReviewBookingId(booking._id); setReviewModalOpen(true); }}
+                                  className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-black rounded-2xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <Star className="w-3.5 h-3.5 fill-slate-950" /> Rate &amp; Review Provider
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -268,13 +478,38 @@ const MyRequests = () => {
       {/* Review Modal */}
       <ReviewModal
         isOpen={reviewModalOpen}
-        onClose={() => { setReviewModalOpen(false); setReviewBookingId(null); }}
+        onClose={() => {
+          setReviewModalOpen(false);
+          setReviewBookingId(null);
+        }}
         bookingId={reviewBookingId}
         reviewerType="homeowner"
         reviewerName={user?.name || 'Customer'}
         onReviewSubmitted={() => {
-          setReviewedBookings(prev => ({ ...prev, [reviewBookingId]: true }));
+          setReviewedBookings((prev) => ({ ...prev, [reviewBookingId]: true }));
         }}
+      />
+
+      {/* Cancel Confirmation Modal */}
+      <CancelConfirmModal
+        isOpen={!!cancelModalBooking}
+        onClose={closeCancelModal}
+        onConfirm={confirmCancel}
+        booking={cancelModalBooking}
+        isLate={cancelModalBooking ? isWithin24Hours(cancelModalBooking) : false}
+        confirming={cancellingId === cancelModalBooking?._id}
+        isPremium={isPremium}
+      />
+
+      {/* Reschedule Modal */}
+      <RescheduleModal
+        isOpen={!!rescheduleModalBooking}
+        onClose={closeRescheduleModal}
+        onConfirm={confirmReschedule}
+        booking={rescheduleModalBooking}
+        availability={rescheduleModalBooking?.providerId?.availability}
+        submitting={reschedulingId === rescheduleModalBooking?._id}
+        error={rescheduleError}
       />
     </div>
   );

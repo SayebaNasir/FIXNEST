@@ -5,7 +5,7 @@ import BookingModal from '../components/BookingModal';
 import { AuthContext } from '../context/AuthContext';
 
 const OffPeakHeatmap = () => {
-  const { user, setIsLoginModalOpen } = useContext(AuthContext);
+  const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState('');
@@ -25,7 +25,7 @@ const OffPeakHeatmap = () => {
 
   useEffect(() => {
     fetchHeatmapData();
-  }, [selectedService, selectedDay]);
+  }, [selectedService, selectedDay, token]);
 
   const fetchHeatmapData = async () => {
     setLoading(true);
@@ -34,7 +34,8 @@ const OffPeakHeatmap = () => {
       if (selectedService) params.serviceType = selectedService;
       if (selectedDay) params.day = selectedDay;
 
-      const res = await axios.get('http://localhost:5001/api/analytics/offpeak-heatmap', { params });
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get('http://localhost:5001/api/analytics/offpeak-heatmap', { params, headers });
       setAnalyticsData(res.data);
     } catch (error) {
       console.error('Error fetching heatmap data:', error);
@@ -231,23 +232,29 @@ const OffPeakHeatmap = () => {
                   className={`rounded-3xl border p-5 shadow-xs transition-all flex flex-col justify-between ${
                     isOffPeak
                       ? 'bg-gradient-to-br from-pink-50/90 via-purple-50/80 to-pink-50/90 border-pink-300 shadow-md shadow-pink-100 hover:border-pink-400'
-                      : hasProvider
-                      ? 'bg-white/95 border-purple-100 hover:border-purple-300'
+                      : slot.demandLevel === 'medium'
+                      ? 'bg-gradient-to-br from-purple-50/90 to-indigo-50/80 border-purple-300 shadow-sm hover:border-purple-400'
+                      : slot.demandLevel === 'high'
+                      ? 'bg-gradient-to-br from-rose-50 to-pink-100/70 border-rose-300 shadow-sm hover:border-rose-400'
                       : 'bg-slate-100/60 border-slate-200 opacity-60'
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="font-extrabold text-lg text-slate-900 flex items-center gap-2 font-display">
-                        <Clock className={`w-5 h-5 ${isOffPeak ? 'text-pink-500' : 'text-purple-500'}`} /> {slot.hour}
+                        <Clock className={`w-5 h-5 ${isOffPeak ? 'text-pink-500' : slot.demandLevel === 'medium' ? 'text-purple-500' : slot.demandLevel === 'high' ? 'text-rose-500' : 'text-slate-400'}`} /> {slot.hour}
                       </span>
                       {isOffPeak ? (
                         <span className="px-2.5 py-1 bg-pink-100 text-pink-700 border border-pink-200 text-xs font-black rounded-xl animate-pulse">
                           10% OFF
                         </span>
-                      ) : hasProvider ? (
-                        <span className="px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold rounded-xl">
+                      ) : slot.demandLevel === 'medium' ? (
+                        <span className="px-2.5 py-1 bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-xl">
                           Standard
+                        </span>
+                      ) : slot.demandLevel === 'high' ? (
+                        <span className="px-2.5 py-1 bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl">
+                          Busy Hours
                         </span>
                       ) : (
                         <span className="px-2.5 py-1 bg-slate-200 text-slate-500 text-xs font-medium rounded-xl">
@@ -313,9 +320,15 @@ const OffPeakHeatmap = () => {
             {/* Modal Header */}
             <div className="p-6 border-b border-pink-100 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 flex justify-between items-center">
               <div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-black text-pink-600 uppercase tracking-wider">
-                  <Sparkles className="w-4 h-4" /> 10% Off-Peak Special Active
-                </div>
+                {offPeakProviders[0]?.isOffPeak ? (
+                  <div className="inline-flex items-center gap-1.5 text-xs font-black text-pink-600 uppercase tracking-wider">
+                    <Sparkles className="w-4 h-4" /> 10% Off-Peak Special Active
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 text-xs font-black text-purple-600 uppercase tracking-wider">
+                    <Tag className="w-4 h-4" /> Standard Rate Time Slot
+                  </div>
+                )}
                 <h2 className="text-2xl font-black text-slate-900 mt-1 flex items-center gap-2 font-display">
                   <Clock className="w-6 h-6 text-purple-600" /> Providers Available at {activeTimeSlot}
                 </h2>
@@ -373,18 +386,30 @@ const OffPeakHeatmap = () => {
                     {/* Price & Book Action */}
                     <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 border-slate-100 pt-3 sm:pt-0">
                       <div className="text-right">
-                        <div className="text-xs text-slate-400 line-through">৳{provider.originalPrice}/hr</div>
-                        <div className="text-lg font-black text-pink-600 flex items-center gap-1.5 font-display">
-                          ৳{provider.discountedPrice}/hr
-                          <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 border border-pink-200 text-[10px] font-black rounded uppercase">10% OFF</span>
-                        </div>
+                        {provider.isOffPeak ? (
+                          <>
+                            <div className="text-xs text-slate-400 line-through">৳{provider.originalPrice}/hr</div>
+                            <div className="text-lg font-black text-pink-600 flex items-center gap-1.5 font-display">
+                              ৳{provider.discountedPrice}/hr
+                              <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 border border-pink-200 text-[10px] font-black rounded uppercase">10% OFF</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-lg font-black text-slate-900 font-display">
+                            ৳{provider.originalPrice}/hr
+                          </div>
+                        )}
                       </div>
 
                       <button
                         onClick={() => handleBookProvider(provider)}
-                        className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-extrabold rounded-2xl text-xs transition-all shadow-md shadow-pink-200 flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        className={`px-5 py-2.5 font-extrabold rounded-2xl text-xs transition-all shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                          provider.isOffPeak
+                            ? 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white shadow-pink-200'
+                            : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200'
+                        }`}
                       >
-                        Book Now (10% OFF) <ArrowRight className="w-4 h-4" />
+                        {provider.isOffPeak ? 'Book Now (10% OFF)' : 'Book Now (Standard Rate)'} <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

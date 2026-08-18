@@ -127,7 +127,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
     formData.time !== '';
 
   const basePrice = provider.pricePerHour || 0;
-  const discountedPrice = Math.round(basePrice * 0.9);
+  const discountedPrice = offPeakInfo.isOffPeak ? Math.round(basePrice * 0.9) : basePrice;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const Booking = require('../models/Booking');
 const BookingNotification = require('../models/BookingNotification');
 const Provider = require('../models/Provider');
@@ -21,13 +22,263 @@ const STATUS_MESSAGES = {
   'in-progress': (name) => `Your job with ${name} is now in progress.`,
   completed:     (name) => `Your service with ${name} has been completed!`,
 };
+/*
+  Merge this route into your existing routes/bookings.js
+  (alongside your current POST '/' and any other booking routes).
+
+  Requires:
+  - const requireAuth = require('../middleware/auth');   // your existing auth middleware, sets req.user
+  - const User = require('../models/User');
+  - const Booking = require('../models/Booking');
+  - Schema fields from schema-additions.js added to User and Booking
+
+  Also requires BookingModal.jsx to send `userId: user?._id` when creating a
+  booking (see accompanying diff) so cancellation can verify ownership.
+*/
+/*
+  Merge this route into your existing routes/bookings.js, alongside the
+  routes MyRequests.jsx already calls (GET '/my', GET '/notifications', etc).
+
+  This replaces the earlier JWT-based version — MyRequests.jsx has no login,
+  bookings are looked up by email, so cancellation authorizes the same way:
+  the email in the request body must match booking.userEmail.
+
+  Requires:
+  - const Booking = require('../models/Booking');
+  - const User = require('../models/User');   // only used to check premium status by email
+  - Schema fields from schema-additions.js added to Booking (userId is now optional/unused here)
+  - User schema needs an email field you can look up by (adjust field name if it differs)
+*/
+
+const CANCELLATION_FEE = 50; // ৳ flat fee for late (<24h) cancellations
+const FREE_LATE_CANCELLATIONS_PER_MONTH = 3;
+
+// Turns a stored date ('YYYY-MM-DD') + time string (e.g. '10:00 AM') into a Date.
+function parseBookingDateTime(dateStr, timeStr) {
+  const match = String(timeStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  let hours = 0;
+  let minutes = 0;
+
+  if (match) {
+    hours = parseInt(match[1], 10);
+    minutes = parseInt(match[2], 10);
+    const meridiem = match[3];
+    if (meridiem) {
+      const isPM = meridiem.toUpperCase() === 'PM';
+      if (isPM && hours !== 12) hours += 12;
+      if (!isPM && hours === 12) hours = 0;
+    }
+  }
+
+  const [year, month, day] = String(dateStr).split('-').map(Number);
+  return new Date(year, month - 1, day, hours, minutes);
+}
+
+router.post('/:id/cancel', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Prefer verifying ownership via the logged-in account (booking.userId is the
+    // reliable link set at creation time), since the email typed into the booking
+    // form can differ from the account's registered email. Falls back to matching
+    // the typed email for guests who aren't logged in.
+    let authorized = false;
+    const authHeader = req.header('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'fallback_secret');
+        if (booking.userId && String(booking.userId) === String(decoded.id)) {
+          authorized = true;
+        }
+      } catch {
+        // invalid/expired token — fall through to the email check below
+      }
+    }
+
+    if (!authorized) {
+      if (!email) {
+        return res.status(400).json({ message: 'email is required' });
+      }
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ message: 'Booking is already cancelled' });
+    }
+    if (booking.status === 'completed') {
+      return res.status(400).json({ message: 'Completed bookings cannot be cancelled' });
+    }
+
+    const bookingDateTime = parseBookingDateTime(booking.date, booking.time);
+    const hoursUntilBooking = (bookingDateTime - new Date()) / (1000 * 60 * 60);
+    const isLateCancellation = hoursUntilBooking < 24;
+
+    let feeCharged = 0;
+    let feeWaived = false;
+    let remainingExemptions = null;
+
+    if (isLateCancellation) {
+      // Prefer the account that actually owns this booking (booking.userId is set
+      // from the authenticated user at creation time), since the email typed into
+      // the cancellation form can differ from the account's registered email.
+      // Fall back to an email lookup for older bookings saved without a userId.
+      let account = booking.userId ? await User.findById(booking.userId) : null;
+      if (!account) {
+        account = await User.findOne({ email: String(email).toLowerCase() });
+      }
+      const isPremium = account?.role === 'premium_user';
+
+      if (isPremium) {
+        const currentMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+        if (account.premiumCancellationsMonth !== currentMonth) {
+          account.premiumCancellationsMonth = currentMonth;
+          account.premiumCancellationsUsed = 0;
+        }
+
+        if (account.premiumCancellationsUsed < FREE_LATE_CANCELLATIONS_PER_MONTH) {
+          account.premiumCancellationsUsed += 1;
+          feeWaived = true;
+          await account.save();
+        } else {
+          feeCharged = CANCELLATION_FEE;
+        }
+
+        remainingExemptions = Math.max(
+          0,
+          FREE_LATE_CANCELLATIONS_PER_MONTH - account.premiumCancellationsUsed
+        );
+      } else {
+        feeCharged = CANCELLATION_FEE;
+      }
+    }
+
+    booking.status = 'cancelled';
+    booking.cancelledAt = new Date();
+    booking.cancellationFee = feeCharged;
+    booking.feeWaived = feeWaived;
+    await booking.save();
+
+    let message;
+    if (!isLateCancellation) {
+      message = 'Booking cancelled. No fee — cancelled more than 24 hours in advance.';
+    } else if (feeWaived) {
+      message = `Booking cancelled. Late-cancellation fee waived (premium exemption used, ${remainingExemptions} left this month).`;
+    } else {
+      message = `Booking cancelled. A ৳${feeCharged} late-cancellation fee applies.`;
+    }
+
+    res.json({ message, booking, feeCharged, feeWaived, remainingExemptions });
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+    res.status(500).json({ message: 'Server error cancelling booking' });
+  }
+});
+
+// -----------------------------------------------
+// PATCH /:id/reschedule — Either the homeowner or the provider moves an
+// active booking to a new date/time. Takes effect immediately; the other
+// party is notified by email (and, for the homeowner, an in-app notification).
+// -----------------------------------------------
+const RESCHEDULABLE_STATUSES = ['pending', 'accepted', 'in-progress'];
+
+router.patch('/:id/reschedule', auth, async (req, res) => {
+  try {
+    const { date, time } = req.body;
+    if (!date || !time) {
+      return res.status(400).json({ message: 'date and time are required' });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (!RESCHEDULABLE_STATUSES.includes(booking.status)) {
+      return res.status(400).json({ message: `Bookings with status "${booking.status}" cannot be rescheduled.` });
+    }
+
+    const provider = await Provider.findById(booking.providerId);
+    if (!provider) {
+      return res.status(404).json({ message: 'Provider not found' });
+    }
+
+    const isHomeowner = String(booking.userId) === String(req.user.id);
+    const isProvider = String(provider.userId) === String(req.user.id);
+    if (!isHomeowner && !isProvider) {
+      return res.status(403).json({ message: 'Not authorized to reschedule this booking' });
+    }
+    const initiatedBy = isProvider ? 'provider' : 'homeowner';
+
+    const requestedDay = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const requestedSlot = normalizeTimeSlot(time);
+    const availabilityEntry = provider.availability?.find((entry) => entry.day === requestedDay);
+    const availableSlots = (availabilityEntry?.slots || []).map(normalizeTimeSlot);
+
+    if (!availabilityEntry || !availableSlots.includes(requestedSlot)) {
+      return res.status(400).json({ message: 'Provider is not available at the selected time.' });
+    }
+
+    const conflictingBooking = await Booking.findOne({
+      _id: { $ne: booking._id },
+      providerId: booking.providerId,
+      date,
+      time: requestedSlot,
+      status: { $in: ['pending', 'accepted', 'in-progress'] }
+    });
+    if (conflictingBooking) {
+      return res.status(409).json({ message: 'This time slot is already booked.' });
+    }
+
+    const oldDate = booking.date;
+    const oldTime = booking.time;
+    const initiatorName = initiatedBy === 'provider' ? provider.name : booking.userName;
+
+    booking.date = date;
+    booking.time = requestedSlot;
+    booking.statusHistory.push({
+      status: booking.status,
+      note: `Rescheduled by ${initiatorName} from ${oldDate} ${oldTime} to ${date} ${requestedSlot}`
+    });
+    await booking.save();
+
+    // In-app notification for the homeowner (mirrors status-change notifications)
+    await BookingNotification.create({
+      userId: booking.userId,
+      userEmail: booking.userEmail,
+      bookingId: booking._id,
+      providerName: provider.name,
+      serviceType: provider.serviceType || '',
+      status: booking.status,
+      message: initiatedBy === 'provider'
+        ? `${provider.name} rescheduled your booking to ${date} at ${requestedSlot}.`
+        : `Your booking with ${provider.name} was rescheduled to ${date} at ${requestedSlot}.`
+    });
+
+    // Email both parties — the provider must be notified by mail per the spec
+    User.findById(provider.userId).then((providerUser) => {
+      emailService.sendRescheduleNotification({
+        booking, provider, providerUser, oldDate, oldTime, initiatedBy
+      }).catch((err) => console.error('Error sending reschedule email:', err));
+    }).catch((err) => console.error('Error fetching provider user for reschedule email:', err));
+
+    res.json({ message: 'Booking rescheduled successfully', booking });
+  } catch (error) {
+    console.error('Error rescheduling booking:', error);
+    res.status(500).json({ message: 'Server error rescheduling booking' });
+  }
+});
+
 
 // -----------------------------------------------
 // POST / — Homeowner creates a new booking request
 // -----------------------------------------------
 router.post('/', auth, async (req, res) => {
   try {
-    const { providerId, userName, userEmail, userAddress, description, date, time } = req.body;
+    const { providerId, userName, userEmail, userAddress, description, date, time, redeemPoints } = req.body;
 
     if (!providerId || !date || !time) {
       return res.status(400).json({ message: 'Provider, date and time are required' });
@@ -61,12 +312,53 @@ router.post('/', auth, async (req, res) => {
       return res.status(409).json({ message: 'This time slot is already booked.' });
     }
 
-    // Check off-peak discount eligibility (< 2 existing bookings in this slot)
-    const slotBookingCount = await Booking.countDocuments({ time: requestedSlot });
-    const isOffPeak = slotBookingCount < 2;
+    // Helper to normalize slot hour string (e.g., "15:00 - 16:00" -> "15:00")
+    const extractSlotHour = (slot) => {
+      if (typeof slot !== 'string') return '';
+      const match = slot.match(/(\d{1,2}):(\d{2})/);
+      if (!match) return slot.trim();
+      return `${match[1].padStart(2, '0')}:${match[2]}`;
+    };
+
+    const hourKey = extractSlotHour(requestedSlot);
+
+    // Count active bookings matching this slot hour
+    const activeBookings = await Booking.find({
+      status: { $in: ['pending', 'accepted', 'in-progress'] }
+    });
+    const slotBookingCount = activeBookings.filter(
+      (b) => extractSlotHour(b.time) === hourKey
+    ).length;
+
+    const isOffPeak = slotBookingCount < 3;
     const basePrice = provider.pricePerHour || 0;
     const discountApplied = isOffPeak ? 10 : 0;
-    const finalPrice = isOffPeak ? Math.round(basePrice * 0.9) : basePrice;
+    let finalPrice = isOffPeak ? Math.round(basePrice * 0.9) : basePrice;
+
+    // Reward Points Redemption
+    let pointsRedeemed = 0;
+    let discountFromPoints = 0;
+    const bookingUser = await User.findById(req.user.id);
+    const rewardPoints = bookingUser ? bookingUser.rewardPoints : 0;
+
+    if (redeemPoints && rewardPoints > 0) {
+      const maxDiscount = finalPrice;
+      const pointsValue = rewardPoints * 3; // 1 point = 3 Taka
+      if (pointsValue <= maxDiscount) {
+        discountFromPoints = pointsValue;
+        pointsRedeemed = rewardPoints;
+      } else {
+        discountFromPoints = maxDiscount;
+        pointsRedeemed = Math.ceil(maxDiscount / 3);
+      }
+      finalPrice = Math.max(0, finalPrice - discountFromPoints);
+
+      // Deduct points from user
+      if (bookingUser) {
+        bookingUser.rewardPoints -= pointsRedeemed;
+        await bookingUser.save();
+      }
+    }
 
     const newBooking = new Booking({
       providerId,
@@ -77,11 +369,13 @@ router.post('/', auth, async (req, res) => {
       description,
       date,
       time: requestedSlot,
-      price: finalPrice,
+      price: finalPrice + discountFromPoints,
       originalPrice: basePrice,
       discountApplied,
       finalPrice,
       isOffPeak,
+      pointsRedeemed,
+      discountFromPoints,
       status: 'pending',
       statusHistory: [{ 
         status: 'pending', 
@@ -114,8 +408,11 @@ router.post('/', auth, async (req, res) => {
 // -----------------------------------------------
 router.get('/my', auth, async (req, res) => {
   try {
-    const bookings = await Booking.find({ userId: req.user.id })
-      .populate('providerId', 'name serviceType')
+    const bookings = await Booking.find({ 
+      userId: req.user.id,
+      status: { $ne: 'cancelled' }
+    })
+      .populate('providerId', 'name serviceType availability')
       .sort({ createdAt: -1 });
 
     res.json(bookings);
@@ -216,6 +513,16 @@ router.patch('/:id/status', auth, async (req, res) => {
       status,
       note: `Status updated to "${status}" by provider`
     });
+
+    if (status === 'completed' && (!booking.pointsEarned || booking.pointsEarned === 0)) {
+      const bookingUser = await User.findById(booking.userId);
+      if (bookingUser) {
+        bookingUser.rewardPoints = (bookingUser.rewardPoints || 0) + 5;
+        await bookingUser.save();
+        booking.pointsEarned = 5;
+      }
+    }
+
     await booking.save();
 
     // Create a homeowner notification
