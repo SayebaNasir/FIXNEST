@@ -15,7 +15,9 @@ const messageRoutes = require('./routes/messages');
 const initSocket = require('./socket');
 const app = express();
 const httpServer = http.createServer(app);
-initSocket(httpServer);
+if (!process.env.VERCEL) {
+  initSocket(httpServer);
+}
 const PORT = process.env.PORT || 5001;
 const fallbackMongoURI = 'mongodb+srv://fixnestAdmin:123fixnest@cluster0.q7gvbmz.mongodb.net/fixnest?appName=Cluster0';
 
