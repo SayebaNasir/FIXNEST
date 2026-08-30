@@ -99,15 +99,30 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Routes
+// Routes (supporting both /api/path and /path for Vercel serverless compatibility)
 app.use('/api/providers', providerRoutes);
+app.use('/providers', providerRoutes);
+
 app.use('/api/bookings', bookingRoutes);
+app.use('/bookings', bookingRoutes);
+
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/geocode', geocodeRoutes);
+app.use('/geocode', geocodeRoutes);
+
 app.use('/api/analytics', analyticsRoutes);
+app.use('/analytics', analyticsRoutes);
+
 app.use('/api/payment', paymentRoutes);
+app.use('/payment', paymentRoutes);
+
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/subscription', subscriptionRoutes);
+
 app.use('/api/messages', messageRoutes);
+app.use('/messages', messageRoutes);
 
 if (!process.env.VERCEL) {
   // Standalone server mode (Local / VPS)
