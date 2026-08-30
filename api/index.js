@@ -1,10 +1,12 @@
 const app = require('../server/index.js');
 
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
   try {
-    return app(req, res);
+    await app(req, res);
   } catch (err) {
     console.error('Serverless Function Error:', err);
-    res.status(500).json({ error: 'Serverless Function Execution Failed', details: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Serverless Function Execution Failed', details: err.message || String(err) });
+    }
   }
 };
