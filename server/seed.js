@@ -456,8 +456,11 @@ const seedData = async () => {
     ];
 
     const reviews = reviewData.map(r => ({
+      bookingId: new mongoose.Types.ObjectId(),
       providerId: savedProviders[r.providerIndex]._id,
-      userName: r.userName,
+      reviewerType: 'homeowner',
+      reviewerName: r.userName,
+      targetType: 'provider',
       rating: r.rating,
       comment: r.comment,
       date: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000) // Random date within last 90 days
