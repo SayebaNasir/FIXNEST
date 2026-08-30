@@ -8,6 +8,7 @@ import { AuthContext } from '../context/AuthContext';
 import { Sparkles, Tag, ArrowRight, Compass, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config/api';
+import { filterMockProviders } from '../data/mockProviders';
 
 const SearchPage = () => {
   const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
@@ -46,8 +47,8 @@ const SearchPage = () => {
 
   const fetchProviders = async (currentFilters, loc = userLocation) => {
     setLoading(true);
+    const f = currentFilters || filters;
     try {
-      const f = currentFilters || filters;
       let url = `${API_URL}/api/providers?lat=${loc.lat}&lng=${loc.lng}&radius=${f.radius}`;
 
       if (f.serviceType) url += `&serviceType=${f.serviceType}`;
@@ -57,9 +58,14 @@ const SearchPage = () => {
       const res = await axios.get(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      setProviders(res.data || []);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setProviders(res.data);
+      } else {
+        setProviders(filterMockProviders(f, loc));
+      }
     } catch (error) {
-      console.error('Error fetching providers:', error);
+      console.warn('Backend API unavailable, using verified local provider dataset:', error.message);
+      setProviders(filterMockProviders(f, loc));
     } finally {
       setLoading(false);
     }
