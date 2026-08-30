@@ -42,16 +42,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// Routes
-app.use('/api/providers', providerRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/geocode', geocodeRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/payment', paymentRoutes);
-app.use('/api/subscription', subscriptionRoutes);
-app.use('/api/messages', messageRoutes);
-
 // Connect to MongoDB (reusing active connection if present)
 let isConnected = false;
 const tryConnectMongo = async () => {
@@ -60,12 +50,23 @@ const tryConnectMongo = async () => {
     return;
   }
 
-  const candidates = [process.env.MONGO_URI, fallbackMongoURI].filter(Boolean);
+  const rawCandidates = [process.env.MONGO_URI, fallbackMongoURI].filter(Boolean);
+  // On Vercel serverless environment, filter out localhost / 127.0.0.1 URIs
+  const candidates = process.env.VERCEL
+    ? rawCandidates.filter(uri => !uri.includes('127.0.0.1') && !uri.includes('localhost'))
+    : rawCandidates;
+
+  if (candidates.length === 0) {
+    candidates.push(fallbackMongoURI);
+  }
+
   let lastError = null;
 
   for (const uri of candidates) {
     try {
-      await mongoose.connect(uri);
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 5000
+      });
       isConnected = true;
       console.log(`Connected to MongoDB at ${uri}`);
       return uri;
@@ -78,29 +79,34 @@ const tryConnectMongo = async () => {
   throw lastError;
 };
 
-if (process.env.VERCEL) {
-  // Connect MongoDB on invocation in Vercel Serverless environment
-  app.use(async (req, res, next) => {
-    try {
-      await tryConnectMongo();
-      next();
-    } catch (err) {
-      console.error('MongoDB Serverless Connection Error:', err);
-      res.status(500).json({ error: 'Database connection failed' });
-    }
-  });
-} else {
+// Ensure MongoDB is connected before handling any API route requests
+app.use(async (req, res, next) => {
+  try {
+    await tryConnectMongo();
+    next();
+  } catch (err) {
+    console.error('MongoDB Connection Middleware Error:', err);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
+
+// Routes
+app.use('/api/providers', providerRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/geocode', geocodeRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/messages', messageRoutes);
+
+if (!process.env.VERCEL) {
   // Standalone server mode (Local / VPS)
-  tryConnectMongo()
-    .then(() => {
-      httpServer.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-      });
-    })
-    .catch(err => {
-      console.error('Error connecting to MongoDB:', err);
-    });
+  httpServer.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
 }
 
 module.exports = app;
+
 

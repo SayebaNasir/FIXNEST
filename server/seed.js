@@ -381,7 +381,8 @@ const seedData = async () => {
         bio: 'Trusted cleaning service for apartments and small offices.'
       }
     ];
-    const savedProviders = await Provider.insertMany(providers);
+    const verifiedProviders = providers.map(p => ({ ...p, verificationStatus: 'verified' }));
+    const savedProviders = await Provider.insertMany(verifiedProviders);
     console.log(`Inserted ${savedProviders.length} providers.`);
 
     // Create reviews for each provider
