@@ -2,7 +2,12 @@ const express = require('express');
 const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const dns = require('dns');
 require('dotenv').config();
+
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 const providerRoutes = require('./routes/providers');
 const bookingRoutes = require('./routes/bookings');
@@ -67,7 +72,9 @@ const tryConnectMongo = async () => {
   for (const uri of candidates) {
     try {
       await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 5000
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 5000,
+        family: 4
       });
       isConnected = true;
       console.log(`Connected to MongoDB at ${uri}`);
