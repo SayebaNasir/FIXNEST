@@ -3,8 +3,8 @@
   "outputDirectory": "client/dist",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
+      "source": "/api/providers",
+      "destination": "/api/providers.js"
     },
     {
       "source": "/((?!api).*)",
