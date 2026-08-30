@@ -1,27 +1,31 @@
-const mongoose = require('mongoose');
+let Provider;
+let initErr = null;
 
-const fallbackMongoURI = 'mongodb+srv://fixnestAdmin:123fixnest@cluster0.q7gvbmz.mongodb.net/fixnest?appName=Cluster0';
-
-const providerSchema = new mongoose.Schema({}, { strict: false });
-const Provider = mongoose.models.Provider || mongoose.model('Provider', providerSchema, 'providers');
+try {
+  const mongoose = require('mongoose');
+  const fallbackMongoURI = 'mongodb+srv://fixnestAdmin:123fixnest@cluster0.q7gvbmz.mongodb.net/fixnest?appName=Cluster0';
+  const providerSchema = new mongoose.Schema({}, { strict: false });
+  Provider = mongoose.models.Provider || mongoose.model('Provider', providerSchema, 'providers');
+  
+  if (mongoose.connection.readyState !== 1) {
+    mongoose.connect(fallbackMongoURI, { serverSelectionTimeoutMS: 5000 }).catch(e => console.error(e));
+  }
+} catch (e) {
+  initErr = e;
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Content-Type', 'application/json');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+  if (initErr) {
+    return res.status(500).end(JSON.stringify({ error: 'Init Error', details: initErr.message, stack: initErr.stack }));
   }
 
   try {
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(fallbackMongoURI, { serverSelectionTimeoutMS: 5000 });
-    }
     const providers = await Provider.find({ verificationStatus: 'verified' });
     res.status(200).send(JSON.stringify(providers));
   } catch (err) {
-    res.status(500).send(JSON.stringify({ error: err.message }));
+    res.status(500).send(JSON.stringify({ error: err.message, stack: err.stack }));
   }
 };
