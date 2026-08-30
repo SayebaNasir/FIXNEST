@@ -11,10 +11,16 @@ const Notification = require('../models/Notification');
 const Booking = require('../models/Booking');
 const auth = require('../middleware/auth');
 
-const uploadDir = path.join(__dirname, '..', 'uploads', 'certifications');
+const uploadDir = process.env.VERCEL
+  ? path.join('/tmp', 'uploads', 'certifications')
+  : path.join(__dirname, '..', 'uploads', 'certifications');
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not create upload directory:', e.message);
 }
 
 const saveCertificationFile = (fileData, fileName) => {
