@@ -2,8 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { Check, Crown, Sparkles } from 'lucide-react';
-
-const API_URL = 'http://localhost:5001';
+import { API_URL } from '../config/api';
 
 const FREE_PERKS = [
   'Book any verified service provider',

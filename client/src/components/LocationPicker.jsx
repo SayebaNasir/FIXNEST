@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 import {
   MapContainer,
   TileLayer,
@@ -143,7 +144,7 @@ const LocationPicker = ({
         setSearching(true);
 
         const response = await axios.get(
-          'http://localhost:5001/api/geocode/search',
+          `${API_URL}/api/geocode/search`,
           {
             params: {
               q: query,
@@ -178,7 +179,7 @@ const LocationPicker = ({
       setReverseLoading(true);
 
       const response = await axios.get(
-        'http://localhost:5001/api/geocode/reverse',
+        `${API_URL}/api/geocode/reverse`,
         {
           params: {
             lat: newLat,

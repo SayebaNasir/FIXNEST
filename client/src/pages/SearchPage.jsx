@@ -7,6 +7,7 @@ import BookingModal from '../components/BookingModal';
 import { AuthContext } from '../context/AuthContext';
 import { Sparkles, Tag, ArrowRight, Compass, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { API_URL } from '../config/api';
 
 const SearchPage = () => {
   const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
@@ -23,7 +24,7 @@ const SearchPage = () => {
     serviceType: '',
     rating: '',
     maxPrice: '',
-    radius: '50'
+    radius: '10'
   });
 
   // Get user's actual location on mount
@@ -47,7 +48,7 @@ const SearchPage = () => {
     setLoading(true);
     try {
       const f = currentFilters || filters;
-      let url = `http://localhost:5001/api/providers?lat=${loc.lat}&lng=${loc.lng}&radius=${f.radius}`;
+      let url = `${API_URL}/api/providers?lat=${loc.lat}&lng=${loc.lng}&radius=${f.radius}`;
 
       if (f.serviceType) url += `&serviceType=${f.serviceType}`;
       if (f.rating) url += `&rating=${f.rating}`;
@@ -77,7 +78,7 @@ const SearchPage = () => {
       }
 
       try {
-        const res = await axios.get('http://localhost:5001/api/auth/favorites', {
+        const res = await axios.get(`${API_URL}/api/auth/favorites`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setFavoriteProviderIds((res.data || []).map((provider) => provider._id));
@@ -99,12 +100,12 @@ const SearchPage = () => {
 
     try {
       if (isFavorite) {
-        await axios.delete(`http://localhost:5001/api/auth/favorites/${provider._id}`, {
+        await axios.delete(`${API_URL}/api/auth/favorites/${provider._id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setFavoriteProviderIds((prev) => prev.filter((id) => id !== provider._id));
       } else {
-        await axios.post(`http://localhost:5001/api/auth/favorites/${provider._id}`, {}, {
+        await axios.post(`${API_URL}/api/auth/favorites/${provider._id}`, {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setFavoriteProviderIds((prev) => [...prev, provider._id]);

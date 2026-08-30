@@ -5,8 +5,7 @@ import axios from 'axios';
 import ReviewModal from '../components/ReviewModal';
 import { AuthContext } from '../context/AuthContext';
 import { ClipboardList, Bell, Clock, CheckCircle2, XCircle, Settings, Sparkles, Star, MapPin, Calendar } from 'lucide-react';
-
-const API_URL = "http://localhost:5001";
+import { API_URL } from '../config/api';
 
 const STATUS_CONFIG = {
   pending:       { label: 'Pending Approval', color: 'bg-amber-50 text-amber-700 border-amber-200',      icon: Clock },

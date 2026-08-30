@@ -3,8 +3,7 @@ import axios from 'axios';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:5001';
+import { API_URL } from '../config/api';
 
 const CONFIG = {
   booking: {

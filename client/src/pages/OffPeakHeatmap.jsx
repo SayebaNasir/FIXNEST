@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Flame, Clock, Tag, TrendingDown, Percent, ArrowRight, ShieldCheck, Sparkles, Filter, CheckCircle2, X, Star, MapPin, Briefcase } from 'lucide-react';
 import BookingModal from '../components/BookingModal';
 import { AuthContext } from '../context/AuthContext';
+import { API_URL } from '../config/api';
 
 const OffPeakHeatmap = () => {
   const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
@@ -35,7 +36,7 @@ const OffPeakHeatmap = () => {
       if (selectedDay) params.day = selectedDay;
 
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.get('http://localhost:5001/api/analytics/offpeak-heatmap', { params, headers });
+      const res = await axios.get(`${API_URL}/api/analytics/offpeak-heatmap`, { params, headers });
       setAnalyticsData(res.data);
     } catch (error) {
       console.error('Error fetching heatmap data:', error);
@@ -53,7 +54,7 @@ const OffPeakHeatmap = () => {
       if (selectedDay) params.day = selectedDay;
 
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.get('http://localhost:5001/api/analytics/offpeak-providers', { params, headers });
+      const res = await axios.get(`${API_URL}/api/analytics/offpeak-providers`, { params, headers });
       
       const filtered = (res.data.providers || []).filter(p => {
         if (user?.role === 'provider') {

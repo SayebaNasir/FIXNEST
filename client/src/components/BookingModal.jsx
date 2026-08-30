@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { X, Calendar, Clock, Tag, Sparkles, Zap } from 'lucide-react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { API_URL } from '../config/api';
 
 const BOOKING_AMOUNT = 200; // ৳
 const PREMIUM_DISCOUNT = 0.05; // 5%
@@ -71,7 +72,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
   useEffect(() => {
     if (formData.time) {
       axios
-        .get('http://localhost:5001/api/analytics/check-slot', {
+        .get(`${API_URL}/api/analytics/check-slot`, {
           params: { time: formData.time },
         })
         .then((res) => {
@@ -110,7 +111,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
       const baseAmount = isPremium ? discountedAmount : BOOKING_AMOUNT;
       const discountFromPoints = formData.redeemPoints ? Math.min(pointsValue, baseAmount) : 0;
       
-      const bookingRes = await axios.post('http://localhost:5001/api/bookings', {
+      const bookingRes = await axios.post(`${API_URL}/api/bookings`, {
         ...formData,
         providerId: provider._id,
         userId: user?._id,
@@ -121,7 +122,7 @@ const BookingModal = ({ isOpen, onClose, provider, initialSlot }) => {
       setStatus('redirecting');
       const bookingId = bookingRes.data.booking._id;
       const paymentRes = await axios.post(
-        `http://localhost:5001/api/payment/init/${bookingId}`,
+        `${API_URL}/api/payment/init/${bookingId}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

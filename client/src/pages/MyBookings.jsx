@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../config/api';
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
@@ -27,7 +28,7 @@ const MyBookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const res = await axios.get('http://localhost:5001/api/bookings', {
+      const res = await axios.get(`${API_URL}/api/bookings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const mine = (res.data || []).filter((b) => String(b.userId) === String(user._id) && b.status !== 'cancelled');
@@ -64,7 +65,7 @@ const MyBookings = () => {
     setFeedback(null);
     try {
       const res = await axios.post(
-        `http://localhost:5001/api/bookings/${booking._id}/cancel`,
+        `${API_URL}/api/bookings/${booking._id}/cancel`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

@@ -6,7 +6,7 @@ import LocationPicker from '../components/LocationPicker';
 import ReviewModal from '../components/ReviewModal';
 import RescheduleModal from '../components/RescheduleModal';
 import { MessageCircle } from 'lucide-react';
-const API_URL = 'http://localhost:5001';
+import { API_URL } from '../config/api';
 
 const RESCHEDULABLE_STATUSES = ['pending', 'accepted', 'in-progress'];
 

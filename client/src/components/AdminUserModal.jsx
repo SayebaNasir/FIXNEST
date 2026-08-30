@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 
 const AdminUserModal = ({ user, token, onClose, onUpdated }) => {
   const [reason, setReason] = useState('');
@@ -16,7 +17,7 @@ const AdminUserModal = ({ user, token, onClose, onUpdated }) => {
     setLoading(true);
     setMessage('');
     try {
-      const res = await axios.post(`http://localhost:5001/api/auth/admin/users/${user._id}/deactivate`, { reason }, {
+      const res = await axios.post(`${API_URL}/api/auth/admin/users/${user._id}/deactivate`, { reason }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage(res.data.message || 'User account deleted');

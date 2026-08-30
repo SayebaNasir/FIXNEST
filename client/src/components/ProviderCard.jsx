@@ -3,6 +3,7 @@ import { Star, MapPin, Clock, CalendarCheck, ShieldCheck, Heart, Sparkles, Arrow
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { API_URL } from '../config/api';
 
 const ProviderCard = ({ provider, onBookNow, onToggleFavorite, isFavorite = false }) => {
   const { user, token, setIsLoginModalOpen } = useContext(AuthContext);
@@ -20,11 +21,11 @@ const ProviderCard = ({ provider, onBookNow, onToggleFavorite, isFavorite = fals
 
     try {
       if (isFavorite) {
-        await axios.delete(`http://localhost:5001/api/auth/favorites/${provider._id}`, {
+        await axios.delete(`${API_URL}/api/auth/favorites/${provider._id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post(`http://localhost:5001/api/auth/favorites/${provider._id}`, {}, {
+        await axios.post(`${API_URL}/api/auth/favorites/${provider._id}`, {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }

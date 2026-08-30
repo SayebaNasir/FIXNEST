@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { X, Star } from 'lucide-react';
 import axios from 'axios';
-
-const API_URL = 'http://localhost:5001';
+import { API_URL } from '../config/api';
 
 const StarPicker = ({ value, onChange, label }) => {
   const [hover, setHover] = useState(0);

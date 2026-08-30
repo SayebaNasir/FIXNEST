@@ -3,8 +3,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { disconnectSocket, getSocket } from "../socketClient";
-
-const API_URL = "http://localhost:5001";
+import { API_URL } from "../config/api";
 
 const ChatPage = () => {
   const { user, token, loading: authLoading } = useContext(AuthContext);

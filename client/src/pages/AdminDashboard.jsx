@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminUserModal from '../components/AdminUserModal';
 import { ShieldAlert, Bell, Users, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 const AdminDashboard = () => {
   const { user, token, loading: authLoading } = useContext(AuthContext);
@@ -25,12 +26,14 @@ const AdminDashboard = () => {
   const deletedCount = users.filter((entry) => entry.accountStatus === 'deleted').length;
 
   const getStatusBadge = (status) => {
-    const normalized = (status || 'active').toLowerCase();
-    if (normalized === 'deleted') {
-      return 'rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-rose-600';
-    }
-    if (normalized === 'pending') {
-      return 'rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-purple-700';
+    if (status === 'verified') return 'rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-700';
+    if (status === 'rejected') return 'rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-rose-700';
+    return 'rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-amber-700';
+  };
+
+  const getUserStatusBadge = (userItem) => {
+    if (userItem.isDeactivated) {
+      return 'rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-rose-700';
     }
     return 'rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-700';
   };
@@ -38,16 +41,16 @@ const AdminDashboard = () => {
   const fetchAdminData = async () => {
     try {
       const [providersRes, notificationsRes, unreadRes, usersRes] = await Promise.all([
-        axios.get('http://localhost:5001/api/providers/admin/pending', {
+        axios.get(`${API_URL}/api/providers/admin/pending`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:5001/api/providers/admin/notifications', {
+        axios.get(`${API_URL}/api/providers/admin/notifications`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:5001/api/providers/admin/notifications/unread-count', {
+        axios.get(`${API_URL}/api/providers/admin/notifications/unread-count`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:5001/api/auth/admin/users', {
+        axios.get(`${API_URL}/api/auth/admin/users`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -75,7 +78,7 @@ const AdminDashboard = () => {
 
   const handleVerify = async (providerId) => {
     try {
-      const res = await axios.post(`http://localhost:5001/api/providers/admin/${providerId}/verify`, {}, {
+      const res = await axios.post(`${API_URL}/api/providers/admin/${providerId}/verify`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage(res.data.message || 'Provider verified');
@@ -89,7 +92,7 @@ const AdminDashboard = () => {
   const handleReject = async (providerId) => {
     try {
       const reason = reasonDrafts[providerId] || '';
-      const res = await axios.post(`http://localhost:5001/api/providers/admin/${providerId}/reject`, { reason }, {
+      const res = await axios.post(`${API_URL}/api/providers/admin/${providerId}/reject`, { reason }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage(res.data.message || 'Provider rejected');
@@ -102,7 +105,7 @@ const AdminDashboard = () => {
 
   const handleDeactivate = async (providerId) => {
     try {
-      const res = await axios.post(`http://localhost:5001/api/providers/admin/${providerId}/account`, {
+      const res = await axios.post(`${API_URL}/api/providers/admin/${providerId}/account`, {
         reason: reasonDrafts[providerId] || 'Provider account deactivated by administrator.'
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -118,7 +121,7 @@ const AdminDashboard = () => {
 
   const handleOpenNotification = async (item) => {
     try {
-      await axios.post(`http://localhost:5001/api/providers/admin/notifications/${item._id}/read`, {}, {
+      await axios.post(`${API_URL}/api/providers/admin/notifications/${item._id}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUnreadCount((prev) => Math.max(prev - 1, 0));
@@ -134,16 +137,16 @@ const AdminDashboard = () => {
   const refreshAdminData = async () => {
     try {
       const [providersRes, notificationsRes, unreadRes, usersRes] = await Promise.all([
-        axios.get('http://localhost:5001/api/providers/admin/pending', {
+        axios.get(`${API_URL}/api/providers/admin/pending`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:5001/api/providers/admin/notifications', {
+        axios.get(`${API_URL}/api/providers/admin/notifications`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:5001/api/providers/admin/notifications/unread-count', {
+        axios.get(`${API_URL}/api/providers/admin/notifications/unread-count`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:5001/api/auth/admin/users', {
+        axios.get(`${API_URL}/api/auth/admin/users`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Star, MapPin, ArrowLeft, ShieldCheck, Heart, Clock, Briefcase, Calendar, MessageCircle } from 'lucide-react';
 import BookingModal from '../components/BookingModal';
 import { AuthContext } from '../context/AuthContext';
+import { API_URL } from '../config/api';
 
 const ProviderProfile = () => {
   const { id } = useParams();
@@ -20,7 +21,7 @@ const ProviderProfile = () => {
   useEffect(() => {
     const fetchProvider = async () => {
       try {
-        const res = await axios.get(`http://localhost:5001/api/providers/${id}`);
+        const res = await axios.get(`${API_URL}/api/providers/${id}`);
         setData(res.data);
       } catch (error) {
         console.error('Error fetching provider:', error);
@@ -49,7 +50,7 @@ const ProviderProfile = () => {
       }
 
       try {
-        const res = await axios.get('http://localhost:5001/api/auth/favorites', {
+        const res = await axios.get(`${API_URL}/api/auth/favorites`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const favorites = res.data || [];
@@ -84,7 +85,7 @@ const ProviderProfile = () => {
   const handleAdminVerify = async () => {
     if (!user || user.role !== 'admin') return;
     try {
-      const res = await axios.post(`http://localhost:5001/api/providers/admin/${provider._id}/verify`, {}, {
+      const res = await axios.post(`${API_URL}/api/providers/admin/${provider._id}/verify`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReviewMessage(res.data.message || 'Provider verified');
@@ -97,7 +98,7 @@ const ProviderProfile = () => {
   const handleAdminReject = async () => {
     if (!user || user.role !== 'admin') return;
     try {
-      const res = await axios.post(`http://localhost:5001/api/providers/admin/${provider._id}/reject`, { reason: reviewReason }, {
+      const res = await axios.post(`${API_URL}/api/providers/admin/${provider._id}/reject`, { reason: reviewReason }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReviewMessage(res.data.message || 'Provider rejected');
@@ -115,11 +116,11 @@ const ProviderProfile = () => {
 
     try {
       if (isFavorite) {
-        await axios.delete(`http://localhost:5001/api/auth/favorites/${provider._id}`, {
+        await axios.delete(`${API_URL}/api/auth/favorites/${provider._id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post(`http://localhost:5001/api/auth/favorites/${provider._id}`, {}, {
+        await axios.post(`${API_URL}/api/auth/favorites/${provider._id}`, {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }

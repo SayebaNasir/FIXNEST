@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import ProviderCard from '../components/ProviderCard';
 import BookingModal from '../components/BookingModal';
 import { Heart, Compass, Sparkles } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 const HomeOwnerDashboard = () => {
   const { user, token, refreshProfile, loading: authLoading } = useContext(AuthContext);
@@ -25,7 +26,7 @@ const HomeOwnerDashboard = () => {
 
     const fetchFavorites = async () => {
       try {
-        const res = await axios.get('http://localhost:5001/api/auth/favorites', {
+        const res = await axios.get(`${API_URL}/api/auth/favorites`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setFavorites(res.data || []);
@@ -46,7 +47,7 @@ const HomeOwnerDashboard = () => {
 
   const handleToggleFavorite = async (provider) => {
     try {
-      await axios.delete(`http://localhost:5001/api/auth/favorites/${provider._id}`, {
+      await axios.delete(`${API_URL}/api/auth/favorites/${provider._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFavorites((prev) => prev.filter((item) => item._id !== provider._id));
