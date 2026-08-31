@@ -1,23 +1,29 @@
 import React from 'react';
 import { Filter, RotateCcw } from 'lucide-react';
 
-const SearchFilters = ({ filters = {}, setFilters = () => {} }) => {
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
+const SearchFilters = ({ filters = {}, setFilters, onFilterChange }) => {
+  const updateFilters = (updater) => {
     if (typeof setFilters === 'function') {
-      setFilters(prev => ({ ...(prev || {}), [name]: value }));
+      setFilters(updater);
+    }
+    if (typeof onFilterChange === 'function') {
+      const nextFilters = typeof updater === 'function' ? updater(filters) : updater;
+      onFilterChange(nextFilters);
     }
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    updateFilters(prev => ({ ...(prev || {}), [name]: value }));
+  };
+
   const handleReset = () => {
-    if (typeof setFilters === 'function') {
-      setFilters({
-        serviceType: '',
-        rating: '',
-        maxPrice: '',
-        radius: '50'
-      });
-    }
+    updateFilters({
+      serviceType: '',
+      rating: '',
+      maxPrice: '',
+      radius: '50'
+    });
   };
 
   return (
@@ -75,9 +81,9 @@ const SearchFilters = ({ filters = {}, setFilters = () => {} }) => {
             className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-bold text-slate-700 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"
           >
             <option value="">Any Rating</option>
-            <option value="4.5">⭐️ 4.5 & Above</option>
-            <option value="4.0">⭐️ 4.0 & Above</option>
-            <option value="3.5">⭐️ 3.5 & Above</option>
+            <option value="4.5">⭐️ 4.5 &amp; Above</option>
+            <option value="4.0">⭐️ 4.0 &amp; Above</option>
+            <option value="3.5">⭐️ 3.5 &amp; Above</option>
           </select>
         </div>
 

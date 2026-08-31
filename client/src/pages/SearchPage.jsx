@@ -199,6 +199,7 @@ const SearchPage = () => {
           <div className="lg:col-span-1">
             <SearchFilters
               filters={filters}
+              setFilters={setFilters}
               onFilterChange={handleFilterChange}
             />
           </div>
