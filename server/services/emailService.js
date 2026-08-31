@@ -36,7 +36,21 @@ const getFromAddress = () => {
   return 'FIXNEST Support <no-reply@fixnest.com>';
 };
 
-const getAppUrl = () => process.env.APP_URL || 'http://localhost:5173';
+const getAppUrl = () => {
+  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost') && !process.env.APP_URL.includes('127.0.0.1')) {
+    return process.env.APP_URL;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL) {
+    return 'https://fixnest-lime.vercel.app';
+  }
+  return process.env.APP_URL || 'http://localhost:5173';
+};
 
 // Shared HTML Template Wrapper
 const wrapHtmlBody = (title, content, actionButton = null) => {

@@ -13,8 +13,31 @@ const getSslcz = () => {
   return new SSLCommerzPayment(store_id, store_passwd, is_live);
 };
 
-const getAppUrl = () => process.env.APP_URL || 'http://localhost:5173';
-const getApiUrl = () => process.env.API_URL || 'http://localhost:5001';
+const getAppUrl = () => {
+  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost') && !process.env.APP_URL.includes('127.0.0.1')) {
+    return process.env.APP_URL;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL) {
+    return 'https://fixnest-lime.vercel.app';
+  }
+  return process.env.APP_URL || 'http://localhost:5173';
+};
+
+const getApiUrl = () => {
+  if (process.env.API_URL && !process.env.API_URL.includes('localhost') && !process.env.API_URL.includes('127.0.0.1')) {
+    return process.env.API_URL;
+  }
+  if (process.env.VERCEL) {
+    return getAppUrl();
+  }
+  return process.env.API_URL || 'http://localhost:5001';
+};
 
 // tran_id prefixes distinguish which payment a callback belongs to, since a
 // single booking/user can have more than one kind of payment in flight.
